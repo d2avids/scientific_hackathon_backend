@@ -1,0 +1,35 @@
+volumes:
+  pg_data:
+
+x-logging: &logging
+  driver: "json-file"
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  postgres:
+    image: postgres:${POSTGRES_VERSION}
+    restart: always
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "${POSTGRES_USER}" ]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    logging: *logging
+  backend:
+    build: .
+    env_file: .env
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "127.0.0.1:${BACKEND_PORT}:8000"
+    volumes:
+      - ./logs:/app/logs
+    logging: *logging

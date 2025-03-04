@@ -69,6 +69,6 @@ async def parse_optional_file(
     photo: Union[UploadFile, str, None] = None
 ) -> Optional[UploadFile]:
     """If empty file, return None."""
-    if isinstance(photo, str) and photo == "":
+    if isinstance(photo, str) and photo == '':
         return None
     return photo

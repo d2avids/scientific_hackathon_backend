@@ -92,7 +92,7 @@ class UserService:
 
         if photo is None:
             if user.photo_path:
-                safe_photo_path = user.photo_path.lstrip("/\\")
+                safe_photo_path = user.photo_path.lstrip('/\\')
                 old_user_photo_full_path = BASE_DIR / safe_photo_path
                 if old_user_photo_full_path.exists():
                     old_user_photo_full_path.unlink()

@@ -9,7 +9,6 @@ load_dotenv(find_dotenv())
 
 BASE_DIR = Path(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-
 RUN_TYPE = os.getenv('RUN_TYPE', 'DOCKER')
 
 

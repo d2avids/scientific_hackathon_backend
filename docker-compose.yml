@@ -21,6 +21,7 @@ services:
       - "127.0.0.1:${POSTGRES_PORT}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
+      - ./media:/app/media/
     logging: *logging
   backend:
     build: .

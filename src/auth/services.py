@@ -66,6 +66,11 @@ async def authenticate(
 ) -> User:
     user = await user_repo.get_by_email(email)
     if user and PasswordEncryption.verify_password(password, user.password):
+        if not user.verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Account not verified yet. Please wait until moderators confirm your registration.'
+            )
         return user
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

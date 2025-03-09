@@ -1,7 +1,8 @@
 from typing import Annotated
-from pydantic import Field
 
+from pydantic import Field, field_validator
 from schemas import ConfiguredModel
+from utils import validate_password
 
 
 class TokenOut(ConfiguredModel):
@@ -39,3 +40,24 @@ class RefreshTokenInput(ConfiguredModel):
             title='Refresh token'
         )
     ]
+
+
+class ChangePasswordInput(ConfiguredModel):
+    old_password: Annotated[
+        str, Field(
+            ...,
+            title='Old password',
+        )
+    ]
+    new_password: Annotated[
+        str, Field(
+            ...,
+            title='New password',
+        )
+    ]
+
+    @field_validator('new_password')
+    @classmethod
+    def validate_new_password(cls, new_password: str) -> str:
+        validate_password(new_password)
+        return new_password

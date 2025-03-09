@@ -1,8 +1,30 @@
+import re
+import traceback
+from dataclasses import dataclass
+from email.message import EmailMessage
+from pathlib import Path
 from typing import Optional, Union
 from typing import Type, Literal
 
-from fastapi import UploadFile
+import aiofiles
+import aiosmtplib as aiosmtp
+from fastapi import UploadFile, HTTPException, status
 from pydantic import BaseModel
+from settings import BASE_DIR, settings
+
+
+def validate_password(password: str) -> None:
+    if ' ' in password:
+        raise ValueError('Password must not contain spaces')
+    if not re.fullmatch(r'[A-Za-z0-9!@#$%&*]+', password):
+        raise ValueError(
+            'Password contains invalid characters. '
+            'Allowed characters: uppercase and lowercase Latin letters, digits, and ! @ # $ % & *'
+        )
+    if not re.search(r'[A-Z]', password):
+        raise ValueError('Password must contain at least one uppercase letter')
+    if not re.search(r'[!@#$%&*]', password):
+        raise ValueError('Password must contain at least one special character (!@#$%&*)')
 
 
 def create_field_map_for_model(model: Type[BaseModel]) -> dict[str, str]:
@@ -32,9 +54,9 @@ def create_field_map_for_model(model: Type[BaseModel]) -> dict[str, str]:
 
 
 def parse_ordering(
-    ordering: Optional[str],
-    field_map: dict[str, str],
-    default_field: str = 'id'
+        ordering: Optional[str],
+        field_map: dict[str, str],
+        default_field: str = 'id'
 ) -> tuple[str, Literal['ASC', 'DESC']]:
     """
     Parse an ordering string to determine the actual DB column and direction.
@@ -65,10 +87,119 @@ def parse_ordering(
     return column_name, direction
 
 
-async def parse_optional_file(
-    photo: Union[UploadFile, str, None] = None
-) -> Optional[UploadFile]:
-    """If empty file, return None."""
-    if isinstance(photo, str) and photo == '':
-        return None
-    return photo
+async def send_mail(
+        to_email: str,
+        subject: str,
+        message: str,
+        from_email: str = settings.email.EMAIL_HOST_USER
+):
+    try:
+        message_obj = EmailMessage()
+        message_obj['From'] = from_email
+        message_obj['To'] = to_email
+        message_obj['Subject'] = subject
+        message_obj.set_content(message)
+        await aiosmtp.send(
+            message_obj,
+            hostname=settings.email.EMAIL_HOST,
+            port=settings.email.EMAIL_PORT,
+            username=settings.email.EMAIL_HOST_USER,
+            password=settings.email.EMAIL_HOST_PASSWORD,
+            use_tls=settings.email.EMAIL_USE_SSL,
+        )
+    except Exception:
+        print('Could not send email: {}'.format(traceback.format_exc()))
+
+
+@dataclass(frozen=True)
+class FileUploadResult:
+    full_path: Path
+    relative_path: str
+    mime_type: str
+    size_bytes: int
+    name: str
+
+
+class FileService:
+    @staticmethod
+    async def parse_optional_file(
+            photo: Union[UploadFile, str, None] = None
+    ) -> Union[UploadFile, str, None]:
+        """Validate that string can only be as an empty value."""
+        if isinstance(photo, str):
+            return ''
+        return photo
+
+    @staticmethod
+    async def construct_full_path_from_relative_path(relative_path: str) -> Path:
+        safe_file_path = relative_path.lstrip('/\\')
+        return BASE_DIR / safe_file_path
+
+    @staticmethod
+    async def delete_file_from_fs(full_path: Path) -> None:
+        if full_path.exists():
+            full_path.unlink()
+
+    @staticmethod
+    async def upload_file(
+            file: UploadFile,
+            path_segments: list[str],
+            allowed_mime_types: list[str],
+            size_limit_megabytes: int,
+    ) -> FileUploadResult:
+        """
+        Helper function to validate and upload file in the filesystem.
+
+        1) Validate file type
+        2) Validate file size
+        3) Construct full Path object
+        4) Write a file
+        5) Return FileUploadResult
+
+        :param path_segments: list of path segments. E.g., if we want to store a photo
+                              of user with id 1, we will pass ['photos', '1'])
+        :param file: UploadFile to be uploaded
+        :param allowed_mime_types: list of allowed MIME types. E.g., ['image/jpeg', 'image/png', 'image/gif']
+                                   (https://developer.mozilla.org/en-US/docs/Web/HTTP/MIME_types/Common_types)
+        :param size_limit_megabytes: int
+        :return: FileUploadResult obj.
+        """
+        file_name = file.filename
+        mime_type = file.content_type
+        if mime_type not in allowed_mime_types:
+            raise HTTPException(
+                status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
+                detail=f'Invalid image format. Allowed formats: {", ".join(allowed_mime_types)}'
+            )
+        content = await file.read()
+        file_size = len(content)
+        if file_size > size_limit_megabytes * 1024 * 1024:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f'File size exceeds the limit of {size_limit_megabytes} MB'
+            )
+        await file.seek(0)
+        media_dir = BASE_DIR / settings.MEDIA_DIR
+        for path_segment in path_segments:
+            media_dir = media_dir / path_segment
+            media_dir.mkdir(parents=True, exist_ok=True)
+
+        full_path = (media_dir / file_name).resolve()
+        if full_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f'File with filename {file_name} already exists.'
+            )
+
+        async with aiofiles.open(full_path, 'wb') as out_file:
+            await out_file.write(content)
+
+        relative_path = f'{str(settings.MEDIA_DIR)}/' + '/'.join(path_segments) + f'/{file_name}'
+
+        return FileUploadResult(
+            full_path=full_path,
+            relative_path=relative_path,
+            mime_type=mime_type,
+            size_bytes=file_size,
+            name=file_name
+        )

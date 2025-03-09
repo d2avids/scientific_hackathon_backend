@@ -3,19 +3,17 @@ from typing import Union
 from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES
 from auth.config import PasswordEncryption, TokenType, JWT
 from auth.schemas import TokenOut
-
 from fastapi import status, HTTPException, Depends, Body
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
 from users.dependencies import get_user_repo
-from users.repositories import UserRepo
 from users.models import User
+from users.repositories import UserRepo
 
 security = HTTPBearer()
 
 
 async def get_current_token_payload(
-    auth_header: HTTPAuthorizationCredentials = Depends(security)
+        auth_header: HTTPAuthorizationCredentials = Depends(security)
 ):
     token = auth_header.credentials
     decoded = await JWT.decode_jwt(token, expected_token_type=TokenType.ACCESS)
@@ -23,8 +21,8 @@ async def get_current_token_payload(
 
 
 async def get_current_user(
-    user_repo: UserRepo = Depends(get_user_repo),
-    payload: dict = Depends(get_current_token_payload)
+        user_repo: UserRepo = Depends(get_user_repo),
+        payload: dict = Depends(get_current_token_payload)
 ) -> User:
     try:
         user_id: int = int(payload['sub'])
@@ -37,14 +35,14 @@ async def get_current_user(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='Could not validate credentials'
+            detail='Could not validate credentials.'
         )
     return user
 
 
 async def get_token_response(user_id: Union[int, str]) -> TokenOut:
     access_token = await JWT.encode_jwt(
-        data={'sub': str(user_id),},
+        data={'sub': str(user_id), },
         token_type=TokenType.ACCESS
     )
     refresh_token = await JWT.encode_jwt(
@@ -66,10 +64,15 @@ async def authenticate(
 ) -> User:
     user = await user_repo.get_by_email(email)
     if user and PasswordEncryption.verify_password(password, user.password):
+        if not user.verified:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Account not verified yet. Please wait until a moderator confirms your registration.'
+            )
         return user
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        detail='Incorrect email or password'
+        detail='Incorrect email or password.'
     )
 
 
@@ -80,3 +83,17 @@ async def login(
 ) -> TokenOut:
     token_response = await get_token_response(user.id)
     return token_response
+
+
+async def change_password_service(
+        old_password: str,
+        new_password: str,
+        current_user: User,
+        user_repo: UserRepo,
+):
+    if not PasswordEncryption.verify_password(old_password, current_user.password):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Incorrect old password.')
+    await user_repo.update_user(
+        user_id=current_user.id,
+        update_data={'password': PasswordEncryption.hash_password(new_password)}
+    )

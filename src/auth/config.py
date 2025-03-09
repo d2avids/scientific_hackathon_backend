@@ -4,7 +4,6 @@ from enum import Enum
 import jwt
 from fastapi import status, HTTPException
 from passlib.context import CryptContext
-
 from settings import settings
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')
@@ -52,17 +51,16 @@ class JWT:
         except jwt.ExpiredSignatureError:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail='Token has expired'
+                detail='Token has expired.'
             )
-        except jwt.exceptions.InvalidTokenError as exc:
-            raise exc
+        except jwt.exceptions.InvalidTokenError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invalid token'
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid token.'
             )
         if decoded.get('type') != expected_token_type.value:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invalid token. Expected token to be {}'.format(expected_token_type.value)
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail='Invalid token. Expected token to be {}.'.format(expected_token_type.value)
             )
         return decoded

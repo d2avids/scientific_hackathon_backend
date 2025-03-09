@@ -1,3 +1,4 @@
+from typing import Optional
 from sqlalchemy import Boolean, String, SmallInteger, BigInteger, ForeignKey, Date, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base, CreatedUpdatedAt
@@ -14,14 +15,14 @@ class User(CreatedUpdatedAt, Base):
     is_mentor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     first_name: Mapped[str] = mapped_column(String(50), nullable=False)
     last_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    patronymic: Mapped[str] = mapped_column(String(50), nullable=True)
+    patronymic: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     phone_number: Mapped[str] = mapped_column(String(11), nullable=False)
     edu_organization: Mapped[str] = mapped_column(String(100), nullable=False)
     verified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # non-required business-logic related fields
-    about: Mapped[str] = mapped_column(String(2500), nullable=True)
-    photo_path: Mapped[str] = mapped_column(String, nullable=True)
+    about: Mapped[Optional[str]] = mapped_column(String(2500), nullable=True)
+    photo_path: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
     personal_data: Mapped[bool] = mapped_column(Boolean, default=True)
     regulations_agreement: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -50,7 +51,7 @@ class Region(Base):
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(250), nullable=False)
-    code: Mapped[int] = mapped_column(SmallInteger, nullable=True)
+    code: Mapped[Optional[int]] = mapped_column(SmallInteger, nullable=True)
 
     # relationships
     participants: Mapped[list['Participant']] = relationship(back_populates='region')
@@ -79,12 +80,12 @@ class Participant(CreatedUpdatedAt, Base):
     city: Mapped[str] = mapped_column(String(250), nullable=False)
 
     # non-required fields
-    interests: Mapped[str] = mapped_column(String(250), nullable=True)
-    olympics: Mapped[str] = mapped_column(String(250), nullable=True)
-    achievements: Mapped[str] = mapped_column(String(250), nullable=True)
+    interests: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
+    olympics: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
+    achievements: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
 
     # relationships
-    user: Mapped['User'] = relationship(back_populates='participant', single_parent=True,)
+    user: Mapped['User'] = relationship(back_populates='participant', single_parent=True)
     region: Mapped['Region'] = relationship(back_populates='participants', cascade='all, delete')
 
 
@@ -106,13 +107,13 @@ class Mentor(CreatedUpdatedAt, Base):
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # non-required fields
-    research_topics: Mapped[str] = mapped_column(String(500), nullable=True)
-    articles: Mapped[str] = mapped_column(String(500), nullable=True)
-    scientific_interests: Mapped[str] = mapped_column(String(500), nullable=True)
-    taught_subjects: Mapped[str] = mapped_column(String(500), nullable=True)
+    research_topics: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    articles: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    scientific_interests: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    taught_subjects: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # relationships
-    user: Mapped['User'] = relationship(back_populates='mentor', single_parent=True,)
+    user: Mapped['User'] = relationship(back_populates='mentor', single_parent=True)
 
 
 class UserDocument(CreatedUpdatedAt, Base):

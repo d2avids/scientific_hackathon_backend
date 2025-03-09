@@ -1,10 +1,9 @@
-from typing import Optional, Sequence, Literal
-
-from sqlalchemy import select, delete, or_, asc, desc
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from typing import Optional, Sequence, Literal, Tuple
 
 from exceptions import NotFoundError
+from sqlalchemy import func, select, delete, or_, asc, desc
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from users.models import User, Participant, Mentor, UserDocument, Region
 from users.schemas import UserCreate, ParticipantCreate, MentorCreate
 
@@ -15,34 +14,53 @@ class UserRepo:
 
     async def get_all(
             self,
-            search: str = None,
+            search: Optional[str] = None,
+            is_mentor: Optional[bool] = None,
             order_column: str = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
-            is_mentor: bool = None,
-    ) -> Sequence[User]:
-        query = select(User)
+            offset: int = 0,
+            limit: int = 10,
+    ) -> Tuple[list[User], int]:
+        base_query = select(User)
+
+        filters = []
         if search:
-            query = query.where(
+            filters.append(
                 or_(
                     User.first_name.ilike(f'%{search}%'),
                     User.last_name.ilike(f'%{search}%'),
-                    User.email.ilike(f'%{search}%'),
+                    User.email.ilike(f'%{search}%')
                 )
             )
-
         if is_mentor is not None:
-            query = query.where(
-                User.is_mentor == is_mentor  # type: ignore
-            )
+            filters.append(User.is_mentor == is_mentor)
 
-        column = getattr(User, order_column)
-        if order_direction == 'ASC':
-            query = query.order_by(asc(column))
-        elif order_direction == 'DESC':
-            query = query.order_by(desc(column))
+        if filters:
+            base_query = base_query.where(*filters)
 
-        result = await self._db.execute(query)
-        return result.scalars().all()
+        count_query = select(func.count(User.id))
+        if filters:
+            count_query = count_query.where(*filters)
+
+        count_result = await self._db.execute(count_query)
+        total = count_result.scalar() or 0
+
+        column = getattr(User, order_column, None)
+        if column is not None:
+            if order_direction == 'ASC':
+                base_query = base_query.order_by(asc(column))
+            else:
+                base_query = base_query.order_by(desc(column))
+
+        base_query = base_query.options(
+            joinedload(User.mentor),
+            joinedload(User.participant)
+        ).offset(offset).limit(limit)
+
+        result = await self._db.execute(base_query)
+        users_list = result.scalars().all()
+
+        return users_list, total
 
     async def get_by_id(self, user_id: int) -> Optional[User]:
         result = await self._db.execute(
@@ -80,12 +98,9 @@ class UserRepo:
             participant_data: ParticipantCreate
     ) -> tuple[User, Participant]:
         async with self._db.begin():
-            print(f'{user_data=}')
             user = await self._create_user(user_data)
-            print(f'{user=}, {user.id=}')
             participant_data = participant_data.dict()
             participant_data.update(({'user_id': user.id}))
-            print(f'{participant_data=}')
             participant = await self._create_participant(participant_data)
         return user, participant
 
@@ -131,7 +146,6 @@ class UserRepo:
         participant = result.scalar_one_or_none()
         if not participant:
             raise NotFoundError('Participant not found')
-        print(f'{update_data=}')
         for key, value in update_data.items():
             if hasattr(participant, key):
                 setattr(participant, key, value)

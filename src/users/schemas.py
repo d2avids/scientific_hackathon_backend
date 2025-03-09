@@ -1,4 +1,3 @@
-import re
 from datetime import date
 from typing import Optional, Annotated
 from urllib.parse import urljoin
@@ -6,6 +5,7 @@ from urllib.parse import urljoin
 from pydantic import Field, EmailStr, model_validator, field_serializer, field_validator
 from schemas import ConfiguredModel, CreatedUpdatedAt, IDModel
 from settings import settings
+from utils import validate_password
 
 
 class ParticipantBase(ConfiguredModel):
@@ -195,6 +195,10 @@ class ParticipantInDB(CreatedUpdatedAt, ParticipantUpdate):
 
 class MentorInDB(CreatedUpdatedAt, MentorUpdate):
     """Schema for a mentor to be returned."""
+    is_admin: Annotated[
+        bool,
+        Field(title='Indicates whether the user is an admin', )
+    ]
 
 
 class UserBase(ConfiguredModel):
@@ -311,18 +315,8 @@ class UserCreate(UserCreateUpdateBase):
 
     @field_validator('password')
     @classmethod
-    def validate_password(cls, v: str) -> str:
-        if " " in v:
-            raise ValueError('Password must not contain spaces')
-        if not re.fullmatch(r'[A-Za-z0-9!@#$%&*]+', v):
-            raise ValueError(
-                'Password contains invalid characters. '
-                'Allowed characters: uppercase and lowercase Latin letters, digits, and ! @ # $ % & *'
-            )
-        if not re.search(r'[A-Z]', v):
-            raise ValueError('Password must contain at least one uppercase letter')
-        if not re.search(r'[!@#$%&*]', v):
-            raise ValueError('Password must contain at least one special character (!@#$%&*)')
+    def validate_password_value(cls, v: str) -> str:
+        validate_password(v)
         return v
 
     @model_validator(mode='after')
@@ -390,6 +384,18 @@ class UserUpdate(ConfiguredModel):
             max_length=100
         )
     ]
+    participant: Annotated[
+        Optional[ParticipantUpdate], Field(
+            default=None,
+            title='Participant Instance'
+        )
+    ]
+    mentor: Annotated[
+        Optional[MentorUpdate], Field(
+            default=None,
+            title='Mentor instance'
+        )
+    ]
 
     @model_validator(mode="before")
     @classmethod
@@ -399,9 +405,11 @@ class UserUpdate(ConfiguredModel):
             'lastName',
             'phoneNumber',
             'eduOrganization',
+            'mentor',
+            'participant'
         ]
         for field_name in fields_cant_be_none_if_present:
-            if field_name in values and values[field_name] is None:
+            if field_name in values and not values[field_name]:
                 raise ValueError(f'{field_name} cannot be null if explicitly passed')
 
         return values
@@ -427,13 +435,13 @@ class UserInDB(UserBase, CreatedUpdatedAt, IDModel):
         )
     ]
     participant: Annotated[
-        Optional[ParticipantUpdate], Field(
+        Optional[ParticipantInDB], Field(
             default=None,
             title='Participant Instance'
         )
     ]
     mentor: Annotated[
-        Optional[MentorUpdate], Field(
+        Optional[MentorInDB], Field(
             default=None,
             title='Mentor instance'
         )
@@ -458,7 +466,7 @@ class UserInDB(UserBase, CreatedUpdatedAt, IDModel):
 class UserDocumentBase(ConfiguredModel):
     name: Annotated[str, Field(title='File name', )]
     path: Annotated[str, Field(title='File path', )]
-    size: Annotated[str, Field(title='File size', )]
+    size: Annotated[float, Field(title='File size', description='File size represented in bytes', )]
     mimetype: Annotated[str, Field(title='File mimetype', )]
 
 
@@ -467,7 +475,12 @@ class FileCreate(ConfiguredModel):
 
 
 class UserDocumentInDB(CreatedUpdatedAt, UserDocumentBase, IDModel):
-    ...
+    @field_serializer('path')
+    def _path_serializer(self, path: Optional[str]) -> Optional[str]:
+        """Generates url path to the file."""
+        if path is None:
+            return None
+        return urljoin(settings.SERVER_URL, path)
 
 
 class RegionInDB(ConfiguredModel, IDModel):

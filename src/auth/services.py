@@ -5,11 +5,11 @@ from auth.config import PasswordEncryption, TokenType, JWT
 from auth.schemas import TokenOut
 from fastapi import status, HTTPException, Depends, Body, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from settings import settings
 from users.dependencies import get_user_repo
 from users.models import User
 from users.repositories import UserRepo
 from utils import send_mail
-from settings import settings
 
 security = HTTPBearer()
 

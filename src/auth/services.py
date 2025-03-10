@@ -1,13 +1,15 @@
 from typing import Union
 
-from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES
+from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, ResetCodeStorage
 from auth.config import PasswordEncryption, TokenType, JWT
 from auth.schemas import TokenOut
-from fastapi import status, HTTPException, Depends, Body
+from fastapi import status, HTTPException, Depends, Body, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from users.dependencies import get_user_repo
 from users.models import User
 from users.repositories import UserRepo
+from utils import send_mail
+from settings import settings
 
 security = HTTPBearer()
 
@@ -89,11 +91,57 @@ async def change_password_service(
         old_password: str,
         new_password: str,
         current_user: User,
-        user_repo: UserRepo,
+        user_repo: UserRepo = Depends(get_user_repo),
 ):
     if not PasswordEncryption.verify_password(old_password, current_user.password):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Incorrect old password.')
     await user_repo.update_user(
         user_id=current_user.id,
         update_data={'password': PasswordEncryption.hash_password(new_password)}
+    )
+
+
+async def reset_password_service(
+        email: str,
+        background_tasks: BackgroundTasks,
+        user_repo: UserRepo = Depends(get_user_repo),
+):
+    user = await user_repo.get_by_email(email)
+    if not user or not user.verified:
+        return
+
+    token = ResetCodeStorage.add_code(str(user.id))
+
+    reset_link = f'{settings.auth.FRONTEND_RESET_PASSWORD_CALLBACK_URL}?user_id={user.id}&token={token}'
+
+    message = (
+        f'Добрый день, {user.first_name}!\n\n'
+        'Вы получили это письмо, так как запросили сброс пароля для вашего аккаунта.\n'
+        f'Чтобы установить новый пароль, перейдите по следующей ссылке:\n{reset_link}\n\n'
+        'Если вы не инициировали сброс пароля, просто проигнорируйте это сообщение.\n\n'
+        'С уважением, команда сайта Научный Хакатон.'
+    )
+
+    background_tasks.add_task(
+        send_mail,
+        to_email=user.email,
+        subject='Сброс пароля на сайте "Научный Хакатон"',
+        message=message
+    )
+
+
+async def reset_password_callback_service(
+        password: str,
+        user_id: int,
+        token: str,
+        user_repo: UserRepo,
+):
+    if ResetCodeStorage.get_code(str(user_id)) != token:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Invalid or expired token.'
+        )
+    await user_repo.update_user(
+        user_id=user_id,
+        update_data={'password': PasswordEncryption.hash_password(password)}
     )

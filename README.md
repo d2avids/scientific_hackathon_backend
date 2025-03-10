@@ -26,3 +26,6 @@ cd src && python main.py
 docker compose up --build --force-recreate -d
 ```
 
+---
+## Potential weaknesses:
+- In-memory storage for password reset tokens. Ideally to use Redis

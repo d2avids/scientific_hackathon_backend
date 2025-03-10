@@ -1,8 +1,32 @@
 from auth.config import TokenType, JWT
-from auth.openapi import LOGIN_RESPONSES, REFRESH_TOKEN_RESPONSES, CHANGE_PASSWORD_RESPONSES
-from auth.schemas import TokenOut, RefreshTokenInput, ChangePasswordInput
-from auth.services import login, get_token_response, get_current_user, change_password_service
-from fastapi import Depends, APIRouter, Body, status
+from auth.openapi import (
+    LOGIN_RESPONSES,
+    REFRESH_TOKEN_RESPONSES,
+    CHANGE_PASSWORD_RESPONSES,
+    RESET_PASSWORD_CALLBACK_RESPONSES
+)
+from auth.schemas import (
+    TokenOut,
+    RefreshTokenInput,
+    ChangePasswordInput,
+    NewPasswordInput
+)
+from auth.services import (
+    login,
+    get_token_response,
+    get_current_user,
+    change_password_service,
+    reset_password_service,
+    reset_password_callback_service
+)
+from fastapi import (
+    Depends,
+    APIRouter,
+    Body,
+    status,
+    BackgroundTasks
+)
+from pydantic import EmailStr
 from users.dependencies import get_user_repo
 from users.models import User
 from users.repositories import UserRepo
@@ -53,3 +77,44 @@ async def change_password(
         current_user=current_user,
         user_repo=user_repo
     )
+
+
+@router.post(
+    '/reset-password',
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+async def reset_password(
+        background_tasks: BackgroundTasks,
+        email: EmailStr = Body(..., embed=True, title='Email'),
+        user_repo: UserRepo = Depends(get_user_repo),
+):
+    """
+    ## Starts the password reset process.
+
+    When a user requests a password reset, an email is sent with a link to reset the password.
+    The reset link will be constructed using the frontend URL:
+
+    `{FRONTEND_RESET_PASSWORD_CALLBACK_URL}?user_id=<user_id>&token=<reset_token>`
+
+    Here, `<user_id>` and `<reset_token>` are automatically provided via the email so that
+    they can be used on client's side to verify and complete the reset process
+    using `/reset-password/set-password` endpoint.
+    """
+    await reset_password_service(email, background_tasks, user_repo)
+
+
+@router.post(
+    '/reset-password/set-password',
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses=RESET_PASSWORD_CALLBACK_RESPONSES
+)
+async def reset_password_callback(
+        password: NewPasswordInput,
+        user_id: int = Body(..., title='User ID from email'),
+        token: str = Body(..., title='One-time password reset token from email'),
+        user_repo: UserRepo = Depends(get_user_repo),
+):
+    """
+    ## Completes the password reset process by validating the token and updating the user's password.
+    """
+    await reset_password_callback_service(password.new_password, user_id, token, user_repo)

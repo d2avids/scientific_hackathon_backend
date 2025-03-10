@@ -26,6 +26,9 @@ class AuthSettings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 5
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 120
 
+    FRONTEND_RESET_PASSWORD_CALLBACK_URL: str = 'http://127.0.0.1:8000/reset'
+    RESET_PASSWORD_CODE_TTL: int = 3600
+
 
 class Settings(BaseSettings):
     DEBUG: bool = os.getenv('DEBUG').lower() == 'true'

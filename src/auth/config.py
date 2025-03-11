@@ -1,5 +1,9 @@
+import secrets
+import string
+import time
 from datetime import datetime, timedelta, timezone
 from enum import Enum
+from typing import Optional
 
 import jwt
 from fastapi import status, HTTPException
@@ -64,3 +68,33 @@ class JWT:
                 detail='Invalid token. Expected token to be {}.'.format(expected_token_type.value)
             )
         return decoded
+
+
+class ResetCodeStorage:
+    """A storage class for one-time password reset codes with a TTL value."""
+    _store = {}
+
+    @classmethod
+    def add_code(cls, user_id: str, ttl: int = settings.auth.RESET_PASSWORD_CODE_TTL) -> str:
+        expiration = time.time() + ttl
+        alphabet = string.ascii_letters + string.digits
+        while True:
+            code = ''.join(secrets.choice(alphabet) for _ in range(64))
+            if (any(c.islower() for c in code)
+                    and any(c.isupper() for c in code)
+                    and sum(c.isdigit() for c in code) >= 3):
+                break
+        cls._store[user_id] = (code, expiration)
+        return code
+
+    @classmethod
+    def get_code(cls, user_id: str) -> Optional[str]:
+        entry = cls._store.get(user_id)
+        if not entry:
+            return None
+        code, expiration = entry
+        if time.time() > expiration:
+            cls._store.pop(user_id, None)
+            return None
+        cls._store.pop(user_id, None)
+        return code

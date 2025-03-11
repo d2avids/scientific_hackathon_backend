@@ -42,13 +42,7 @@ class RefreshTokenInput(ConfiguredModel):
     ]
 
 
-class ChangePasswordInput(ConfiguredModel):
-    old_password: Annotated[
-        str, Field(
-            ...,
-            title='Old password',
-        )
-    ]
+class NewPasswordInput(ConfiguredModel):
     new_password: Annotated[
         str, Field(
             ...,
@@ -61,3 +55,12 @@ class ChangePasswordInput(ConfiguredModel):
     def validate_new_password(cls, new_password: str) -> str:
         validate_password(new_password)
         return new_password
+
+
+class ChangePasswordInput(NewPasswordInput):
+    old_password: Annotated[
+        str, Field(
+            ...,
+            title='Old password',
+        )
+    ]

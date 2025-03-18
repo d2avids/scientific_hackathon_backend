@@ -127,6 +127,7 @@ async def get_users(
     '/users',
     tags=[f'{USERS_PREFIX} Registration'],
     responses=USER_CREATE_RESPONSES,
+    status_code=status.HTTP_201_CREATED,
     response_model=UserInDB
 )
 async def create_user(
@@ -227,6 +228,7 @@ async def get_user_documents(
         **AUTHENTICATION_RESPONSES,
         **USER_DOCUMENTS_CREATE_RESPONSES,
     },
+    status_code=status.HTTP_201_CREATED,
     response_model=UserDocumentInDB
 )
 async def create_user_document(

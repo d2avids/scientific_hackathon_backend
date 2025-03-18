@@ -10,7 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from users.models import User, UserDocument
 from users.repositories import UserRepo, UserDocumentRepo, RegionRepo
 from users.schemas import UserCreate, UserInDB, MentorInDB, ParticipantInDB, UserDocumentInDB, UserUpdate, RegionInDB
-from utils import parse_ordering, create_field_map_for_model, FileService, send_mail
+from utils import clean_errors, parse_ordering, create_field_map_for_model, FileService, send_mail
 
 
 class UserService:
@@ -102,16 +102,9 @@ class UserService:
             try:
                 update_model = UserUpdate(**data_dict)
             except ValidationError as e:
-                errors = e.errors()
-                for err in errors:
-                    if 'ctx' in err and 'error' in err['ctx']:
-                        err.pop('ctx')
-                    if 'url' in err:
-                        err.pop('url', None)
-
                 raise HTTPException(
                     status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail=errors
+                    detail=clean_errors(e.errors())
                 )
             except TypeError:
                 raise HTTPException(

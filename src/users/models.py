@@ -1,8 +1,10 @@
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from sqlalchemy import Boolean, String, SmallInteger, BigInteger, ForeignKey, Date, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from database import Base, CreatedUpdatedAt
 
+if TYPE_CHECKING:
+    from teams.models import Team, TeamMember
 
 class User(CreatedUpdatedAt, Base):
     __tablename__ = 'users'
@@ -87,6 +89,7 @@ class Participant(CreatedUpdatedAt, Base):
     # relationships
     user: Mapped['User'] = relationship(back_populates='participant', single_parent=True)
     region: Mapped['Region'] = relationship(back_populates='participants', cascade='all, delete')
+    team_members: Mapped[list['TeamMember']] = relationship(back_populates='participant', cascade='all, delete-orphan')
 
 
 class Mentor(CreatedUpdatedAt, Base):
@@ -114,6 +117,7 @@ class Mentor(CreatedUpdatedAt, Base):
 
     # relationships
     user: Mapped['User'] = relationship(back_populates='mentor', single_parent=True)
+    teams: Mapped[list['Team']] = relationship('Team', back_populates='mentor', cascade='none')
 
 
 class UserDocument(CreatedUpdatedAt, Base):

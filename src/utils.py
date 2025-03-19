@@ -141,6 +141,24 @@ class FileService:
             full_path.unlink()
 
     @staticmethod
+    async def delete_all_files_in_directory(path_segments: list[str]) -> None:
+        """
+        Deletes all files in the specified directory.
+
+        :param path_segments: list of path segments forming the directory path.
+        """
+        media_dir = BASE_DIR / settings.MEDIA_DIR
+        for path_segment in path_segments:
+            media_dir = media_dir / path_segment
+
+        if not media_dir.exists() or not media_dir.is_dir():
+            return
+
+        for file in media_dir.iterdir():
+            if file.is_file():
+                file.unlink()
+
+    @staticmethod
     async def upload_file(
             file: UploadFile,
             path_segments: list[str],

@@ -6,6 +6,7 @@ from database import Base, CreatedUpdatedAt
 if TYPE_CHECKING:
     from teams.models import Team, TeamMember
 
+
 class User(CreatedUpdatedAt, Base):
     __tablename__ = 'users'
 
@@ -16,6 +17,7 @@ class User(CreatedUpdatedAt, Base):
     # required business-logic related fields
     is_mentor: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     first_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    birth_date: Mapped[Date] = mapped_column(Date, nullable=False)
     last_name: Mapped[str] = mapped_column(String(50), nullable=False)
     patronymic: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
     phone_number: Mapped[str] = mapped_column(String(11), nullable=False)
@@ -78,7 +80,6 @@ class Participant(CreatedUpdatedAt, Base):
 
     # required fields
     school_grade: Mapped[str] = mapped_column(String(15), nullable=False)
-    birth_date: Mapped[Date] = mapped_column(Date, nullable=False)
     city: Mapped[str] = mapped_column(String(250), nullable=False)
 
     # non-required fields

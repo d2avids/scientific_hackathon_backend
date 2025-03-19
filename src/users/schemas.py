@@ -26,14 +26,6 @@ class ParticipantBase(ConfiguredModel):
             max_length=15
         )
     ]
-    birth_date: Annotated[
-        date,
-        Field(
-            ...,
-            title='Birth Date',
-            description='Participant\'s date of birth.'
-        )
-    ]
     city: Annotated[
         str,
         Field(
@@ -91,14 +83,6 @@ class ParticipantUpdate(ConfiguredModel):
             title='School Grade',
             description='Participant\'s current school grade.',
             max_length=15
-        )
-    ]
-    birth_date: Annotated[
-        Optional[date],
-        Field(
-            default=None,
-            title='Birth Date',
-            description='Participant\'s date of birth.'
         )
     ]
     city: Annotated[
@@ -227,6 +211,14 @@ class UserBase(ConfiguredModel):
             title='Patronymic',
             min_length=2,
             max_length=50
+        )
+    ]
+    birth_date: Annotated[
+        date,
+        Field(
+            ...,
+            title='Birth Date',
+            description='Participant\'s date of birth.'
         )
     ]
     phone_number: Annotated[
@@ -404,6 +396,7 @@ class UserUpdate(ConfiguredModel):
             'firstName',
             'lastName',
             'phoneNumber',
+            'birthDate',
             'eduOrganization',
             'mentor',
             'participant'

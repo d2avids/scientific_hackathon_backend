@@ -66,7 +66,7 @@ class UserService:
     async def create(self, user: UserCreate) -> UserInDB:
         try:
             participant_data, mentor_data = user.participant, user.mentor
-            user = user.copy(exclude={'participant', 'mentor'})
+            user = user.model_copy(update={'participant': None, 'mentor': None})
             user.password = PasswordEncryption.hash_password(user.password)
             if user.is_mentor:
                 user, mentor = await self._repo.create_user_and_mentor(user, mentor_data)

@@ -88,7 +88,7 @@ class UserRepo:
     ) -> tuple[User, Mentor]:
         async with self._db.begin():
             user = await self._create_user(user_data)
-            mentor_data = mentor_data.dict()
+            mentor_data = mentor_data.model_dump()
             mentor_data.update({'user_id': user.id})
             mentor = await self._create_mentor(mentor_data)
         return user, mentor
@@ -100,14 +100,14 @@ class UserRepo:
     ) -> tuple[User, Participant]:
         async with self._db.begin():
             user = await self._create_user(user_data)
-            participant_data = participant_data.dict()
+            participant_data = participant_data.model_dump()
             participant_data.update(({'user_id': user.id}))
             participant = await self._create_participant(participant_data)
         return user, participant
 
     async def _create_user(self, data: UserCreate) -> User:
         """Method to be used inside a transaction block. No commit applied"""
-        user = User(**data.dict())
+        user = User(**data.model_dump())
         self._db.add(user)
         await self._db.flush()
         await self._db.refresh(user, attribute_names=['participant', 'mentor'])

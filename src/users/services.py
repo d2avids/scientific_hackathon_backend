@@ -221,7 +221,7 @@ class UserService:
             )
         await self._repo.delete(user)
         await FileService.delete_all_files_in_directory(
-            ['documents', [str(user_id)]]
+            ['documents', str(user_id)]
         )
         await FileService.delete_all_files_in_directory(
             ['photos', str(user_id)]

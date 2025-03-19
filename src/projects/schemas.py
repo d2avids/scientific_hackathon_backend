@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import urljoin
 
@@ -40,6 +41,20 @@ class ProjectInDB(ProjectBase, IDModel):
             title='Sum of step scores for this project'
         )
     ]
+    created_at: Annotated[
+        datetime,
+        Field(
+            ...,
+            title='Created at',
+        )
+    ]
+    updated_at: Annotated[
+        Optional[datetime],
+        Field(
+            ...,
+            title='Updated at',
+        )
+    ]
 
     @field_serializer('document_path')
     def _document_path_serializer(self, document_path: Optional[str]) -> Optional[str]:
@@ -47,6 +62,16 @@ class ProjectInDB(ProjectBase, IDModel):
         if document_path is None:
             return None
         return urljoin(settings.SERVER_URL, document_path)
+
+
+class ProjectWithStepsInDB(ProjectInDB):
+    steps: Annotated[
+        list['StepInDB'],
+        Field(
+            ...,
+            title='Steps of the project',
+        )
+    ]
 
 
 class ProjectCreate(ProjectBase):
@@ -69,7 +94,7 @@ class StepInDB(ConfiguredModel, IDModel):
         )
     ]
     text: Annotated[
-        str,
+        Optional[str],
         Field(
             ...,
             title='Team\'s answer on this step',
@@ -94,5 +119,12 @@ class StepInDB(ConfiguredModel, IDModel):
         Field(
             ...,
             title='Status',
+        )
+    ]
+    updated_at: Annotated[
+        Optional[datetime],
+        Field(
+            ...,
+            title='Updated at',
         )
     ]

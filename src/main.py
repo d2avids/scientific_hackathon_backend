@@ -1,11 +1,11 @@
+from auth.routers import router as auth_router_v1
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
-from uvicorn import run
-
-from auth.routers import router as auth_router_v1
-from users.routers import router as user_router_v1
-from teams.routers import router as team_router_v1
+from projects.routers import router as project_router_v1
 from settings import settings
+from teams.routers import router as team_router_v1
+from users.routers import router as user_router_v1
+from uvicorn import run
 
 app = FastAPI(
     debug=settings.DEBUG,
@@ -19,7 +19,7 @@ app = FastAPI(
 app.include_router(user_router_v1, prefix='/api/v1', )
 app.include_router(auth_router_v1, prefix='/api/v1', )
 app.include_router(team_router_v1, prefix='/api/v1', )
-
+app.include_router(project_router_v1, prefix='/api/v1', )
 
 if __name__ == '__main__':
     run(

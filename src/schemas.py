@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 from pydantic.alias_generators import to_camel
@@ -33,7 +33,7 @@ class CreatedUpdatedAt(ConfiguredModel):
         )
     ]
     updated_at: Annotated[
-        datetime,
+        Optional[datetime],
         Field(
             ...,
             title='Updated at',

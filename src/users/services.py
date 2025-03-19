@@ -207,6 +207,20 @@ class UserService:
                     f'С уважением, команда сайта Научный Хакатон.'
         )  # type: ignore
 
+    async def delete(self, user_id: int) -> None:
+        user = await self._repo.get_by_id(user_id)
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='User not found.'
+            )
+        if user.is_mentor:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Cannot delete mentor user.'
+            )
+        await self._repo.delete(user)
+
 
 class UserDocumentService:
     def __init__(self, repo: UserDocumentRepo):

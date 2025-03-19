@@ -1,11 +1,15 @@
-from typing import Annotated, Optional, Union
+from typing import Annotated, Optional
+
+from auth.services import get_current_user
 from fastapi import APIRouter, Depends, status, Query, UploadFile, Form
-from projects.schemas import ProjectInDB, ProjectCreate
-from projects.dependencies import get_project_service
+from openapi import NOT_FOUND_RESPONSE, AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
+from projects.dependencies import get_project_service
+from projects.openapi import PROJECT_CREATE_RESPONSES, PROJECT_CREATE_SCHEMA
+from projects.schemas import ProjectInDB, ProjectWithStepsInDB
 from projects.services import ProjectService
-from utils import FileService
-from projects.openapi import PROJECT_CREATE_SCHEMA
+from users.models import User
+from users.permissions import require_mentor
 
 router = APIRouter(prefix='/projects')
 
@@ -16,6 +20,9 @@ PROJECT_TAG = 'Projects'
     '/',
     tags=[PROJECT_TAG],
     response_model=PaginatedResponse[ProjectInDB],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+    }
 )
 async def get_projects(
         pagination_params: PaginationParams = Depends(),
@@ -28,7 +35,9 @@ async def get_projects(
             description='Sort field; prefix with "-" for descending order.'
         )] = None,
         service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(get_current_user),
 ):
+    """## Get paginated list of projects. Authenticated user required"""
     projects_in_db, total, total_pages = await service.get_all(
         search=search,
         ordering=ordering,
@@ -48,24 +57,54 @@ async def get_projects(
     '/',
     tags=[PROJECT_TAG],
     response_model=ProjectInDB,
-    responses=PROJECT_CREATE_SCHEMA,
+    responses={
+        **PROJECT_CREATE_RESPONSES,
+        **AUTHENTICATION_RESPONSES,
+    },
     status_code=status.HTTP_201_CREATED,
+    openapi_extra=PROJECT_CREATE_SCHEMA
 )
 async def create_project(
-        project_data: Annotated[str, Form(..., description='JSON string of user data')],
-        document: Union[UploadFile, str, None] = Depends(FileService.parse_optional_file),
+        data: Annotated[str, Form(..., description='JSON string of user data')],
+        document: UploadFile,
         service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(require_mentor)
 ):
-    return await service.create(project_data, document)
+    """## Create project. Mentor right required"""
+    return await service.create(data, document)
+
+
+@router.get(
+    '/{project_id}',
+    tags=[PROJECT_TAG],
+    response_model=ProjectWithStepsInDB,
+    responses={
+        **NOT_FOUND_RESPONSE,
+        **AUTHENTICATION_RESPONSES,
+    }
+)
+async def get_project(
+        project_id: int,
+        service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(get_current_user),
+):
+    """## Get project by id. Authenticated user required"""
+    return await service.get_by_id(project_id)
 
 
 @router.delete(
     '/{project_id}',
     tags=[PROJECT_TAG],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE
+    },
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def delete_project(
         project_id: int,
         service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(require_mentor),
 ):
+    """## Delete project by id. Mentor rights required"""
     return await service.delete(project_id)

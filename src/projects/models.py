@@ -1,7 +1,10 @@
-from database import Base, CreatedUpdatedAt
-from sqlalchemy import String, BigInteger, Integer, SmallInteger, ForeignKey
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Optional
+
+from database import Base, CreatedUpdatedAt
+from projects.constants import ProjectStatus
+from sqlalchemy import String, BigInteger, Integer, SmallInteger, ForeignKey, TIMESTAMP
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from teams.models import Team
@@ -14,8 +17,8 @@ class Project(CreatedUpdatedAt, Base):
 
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     description: Mapped[str] = mapped_column(String(500), nullable=False)
-    document_path: Mapped[str] = mapped_column(String, nullable=False)
-    score: Mapped[int] = mapped_column(Integer, nullable=False)
+    document_path: Mapped[str] = mapped_column(String, nullable=True)
+    score: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # relationships
     team: Mapped['Team'] = relationship(
@@ -47,7 +50,13 @@ class Step(Base):
     text: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     score: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
     timer_minutes: Mapped[int] = mapped_column(SmallInteger, default=30, nullable=False)
-    status: Mapped[str] = mapped_column(String(200), nullable=False)
+    status: Mapped[str] = mapped_column(String(200), default=ProjectStatus.NOT_STARTED, nullable=False)
 
+    updated_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        default=datetime.now(UTC),
+        onupdate=datetime.now(UTC)
+    )
+
+    # relationships
     project: Mapped['Project'] = relationship('Project', back_populates='steps')
-

@@ -169,7 +169,7 @@ class FileService:
         if mime_type not in allowed_mime_types:
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
-                detail=f'Invalid image format. Allowed formats: {", ".join(allowed_mime_types)}'
+                detail=f'Invalid file format. Allowed formats: {", ".join(allowed_mime_types)}'
             )
         content = await file.read()
         file_size = len(content)

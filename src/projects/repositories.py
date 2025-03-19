@@ -1,15 +1,24 @@
-from typing import Literal, Tuple, Sequence
-
-from sqlalchemy import select, func, asc, desc, delete
-from sqlalchemy.ext.asyncio import AsyncSession
+from typing import Literal, Tuple, Sequence, Optional
 
 from projects.models import Project, Step
 from projects.schemas import ProjectCreate
+from sqlalchemy import select, func, asc, desc, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
 
 class ProjectRepo:
     def __init__(self, db: AsyncSession):
         self._db = db
+
+    async def get_by_id(self, project_id: int, join_steps: bool = False) -> Optional[Project]:
+        base_query = select(Project).where(Project.id == project_id)
+        if join_steps:
+            base_query = base_query.options(
+                joinedload(Project.steps)
+            )
+        result = await self._db.execute(base_query)
+        return result.unique().scalar_one_or_none()
 
     async def get_all(
             self,
@@ -73,5 +82,6 @@ class ProjectRepo:
         await self._db.refresh(project)
 
     async def delete(self, project_id: int) -> None:
-        query = delete().where(Project.id == project_id)  # type: ignore
+        query = delete(Project).where(Project.id == project_id)  # type: ignore
         await self._db.execute(query)
+        await self._db.commit()

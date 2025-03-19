@@ -14,13 +14,14 @@ class UserRepo:
 
     async def get_all(
             self,
-            search: Optional[str] = None,
-            is_mentor: Optional[bool] = None,
+            *,
+            search: str = None,
+            is_mentor: bool = None,
             order_column: str = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[list[User], int]:
+    ) -> Tuple[Sequence[User], int]:
         base_query = select(User)
 
         filters = []

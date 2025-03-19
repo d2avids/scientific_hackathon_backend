@@ -21,9 +21,9 @@ class UserService:
 
     async def get_all(
             self,
-            search: Optional[str] = None,
-            is_mentor: Optional[bool] = None,
-            ordering: Optional[str] = None,
+            search: str = None,
+            is_mentor: bool = None,
+            ordering: str = None,
             offset: int = 0,
             limit: int = 10,
     ) -> Tuple[list[UserInDB], int, int]:
@@ -129,7 +129,7 @@ class UserService:
                 file=photo,
                 path_segments=['photos', str(user_id)],
                 allowed_mime_types=['image/jpeg', 'image/png', 'image/bmp'],
-                size_limit_megabytes=5,
+                size_limit_megabytes=10,
             )
             update_data['photo_path'] = result.relative_path
 
@@ -212,7 +212,7 @@ class UserDocumentService:
     def __init__(self, repo: UserDocumentRepo):
         self._repo = repo
 
-    async def get_by_id(self, document_id) -> UserDocumentInDB:
+    async def get_by_id(self, document_id: int) -> UserDocumentInDB:
         document = await self._repo.get_by_id(document_id)
         if not document:
             raise HTTPException(

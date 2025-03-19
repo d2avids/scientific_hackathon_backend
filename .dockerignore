@@ -5,3 +5,4 @@ README.md
 .env_example
 logs
 LICENSE
+.flake8

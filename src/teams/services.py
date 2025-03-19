@@ -1,19 +1,25 @@
-import json
 from typing import Optional, Tuple
 
 from fastapi import status, HTTPException
-from pydantic_core import ValidationError
 from sqlalchemy.exc import IntegrityError
 from teams.repositories import TeamRepo
-from teams.schemas import TeamCreate, TeamInDB, TeamMemberInDB, TeamUpdate
-from utils import clean_errors, parse_ordering
+from teams.schemas import TeamCreateUpdate, TeamInDB, TeamMemberInDB
+from utils import parse_ordering, create_field_map_for_model
+
 
 class TeamService:
+    field_map: dict = create_field_map_for_model(TeamInDB)
+
     def __init__(self, repo: TeamRepo):
         self._repo = repo
 
-    async def create_team(self, team: TeamCreate) -> TeamInDB:
+    async def create_team(self, team: TeamCreateUpdate, mentor_id: int) -> TeamInDB:
         try:
+
+            team_data = team.model_dump()
+            team_data['mentor_id'] = mentor_id
+            team = TeamCreateUpdate(**team_data)
+
             team = await self._repo.create(team)
             team_model = TeamInDB.model_validate(team)
             team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
@@ -23,36 +29,16 @@ class TeamService:
                 status_code=status.HTTP_409_CONFLICT,
                 detail='Team with this name already exists'
             )
-        
-    async def update_team(self, team_id: int, update_data: str) -> TeamInDB:
-        try:
-            data_dict = json.loads(update_data)
-        except json.JSONDecodeError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Invalid JSON in user_data field.'
-            )
-        try:
-            update_model = TeamUpdate(**data_dict)
-        except ValidationError as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=clean_errors(e.errors())
-            )
-        except TypeError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail='Data string must be a valid JSON.'
-            )
-        if 'mentor_id' in update_model.model_fields_set:
-            update_model.mentor_id = int(update_model.mentor_id)
-        if 'project_id' in update_model.model_fields_set:
-            update_model.project_id = int(update_model.project_id)
-        team = await self._repo.update_team(team_id, update_model)
+
+    async def update_team(self, team_id: int, update_data: TeamCreateUpdate, mentor_id: int) -> TeamInDB:
+        update_data.mentor_id = int(mentor_id)
+        if 'project_id' in update_data.model_fields_set:
+            update_data.project_id = int(update_data.project_id)
+        team = await self._repo.update_team(team_id, update_data)
         team_model = TeamInDB.model_validate(team)
         team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
         return team_model
-    
+
     async def delete_team(self, team_id: int) -> None:
         await self._repo.delete_team(team_id)
 
@@ -61,13 +47,15 @@ class TeamService:
         team_model = TeamInDB.model_validate(team)
         team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
         return team_model
-    
+
     async def get_all_teams(
             self,
+            *,
             search: Optional[str] = None,
             ordering: Optional[str] = None,
+            mentor_id: Optional[int] = None,
             offset: int = 0,
-            limit: int = 10
+            limit: int = 10,
     ) -> Tuple[list[TeamInDB], int, int]:
         order_column, order_direction = parse_ordering(ordering, field_map=self.field_map)
         teams, total = await self._repo.get_all(
@@ -76,10 +64,12 @@ class TeamService:
             offset=offset,
             limit=limit,
             order_column=order_column,
-            order_direction=order_direction
+            order_direction=order_direction,
+            mentor_id=mentor_id
         )
-        teams_models = [TeamInDB.model_validate(team) for team in teams]
-        teams_models.team_members = [TeamMemberInDB.model_validate(member) for member in teams.team_members]
+        teams_models: list[TeamInDB] = []
+        for team in teams:
+            team_model = TeamInDB.model_validate(team)
+            team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
+            teams_models.append(team_model)
         return teams_models, total, offset
-    
-    

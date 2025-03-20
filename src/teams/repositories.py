@@ -1,9 +1,11 @@
-from typing import Optional, Sequence, Literal, Tuple
+from typing import Literal, Optional, Sequence, Tuple
 
-from exceptions import NotFoundError
-from sqlalchemy import Select, func, select, delete, asc, desc, or_, Column
+from sqlalchemy import (ColumnElement, Select, asc, delete, desc, func, or_,
+                        select)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+
+from exceptions import NotFoundError
 from teams.models import Team, TeamMember
 from teams.schemas import TeamCreateUpdate, TeamMemberCreateUpdate
 
@@ -40,10 +42,10 @@ class TeamRepo:
         order_direction: Literal['ASC', 'DESC'] = 'ASC',
         offset: int = 0,
         limit: int = 10,
-    ) -> Tuple[list[Team], int]:
+    ) -> Tuple[Sequence[Team], int]:
         base_query = select(Team)
 
-        filters = []
+        filters: list[ColumnElement[bool]] = []
         if search:
             filters.append(Team.name.ilike(f'%{search}%'))
         if mentor_id:
@@ -100,7 +102,7 @@ class TeamRepo:
         """
         Получить команду по проекту или ментору. Если не указать ни один из параметров, то вернется None.
         """
-        conditions: list[Column[bool]] = []
+        conditions: list[ColumnElement[bool]] = []
 
         if project_id is not None:
             conditions.append(Team.project_id == project_id)
@@ -132,7 +134,8 @@ class TeamRepo:
                 for member in team_data.team_members:
                     member_data = member.model_dump()
                     member_data['team_id'] = team.id
-                    await member_repo.create_team_member(member_data)
+                    member_create_instance = TeamMemberCreateUpdate(**member_data)
+                    await member_repo.create_team_member(member_create_instance)
 
             await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
@@ -151,7 +154,7 @@ class TeamRepo:
             self._db.add(team)
             await self._db.flush()
             if 'team_members' in update_data:
-                await self._update_team_members(team, update_data.pop('team_members'))
+                await self._update_team_members(update_data.pop('team_members'))
             await self._db.refresh(team)
         return team
 
@@ -195,10 +198,10 @@ class TeamMemberRepo:
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[list[TeamMember], int]:
+    ) -> Tuple[Sequence[TeamMember], int]:
         base_query = select(TeamMember)
 
-        filters = []
+        filters: list[ColumnElement[bool]] = []
         if search:
             filters.append(TeamMember.role_name.ilike(f'%{search}%'))
 
@@ -263,6 +266,14 @@ class TeamMemberRepo:
         base_query = self._add_team_member_joins(base_query, team_join, participant_join)
         result = await self._db.execute(base_query)
         return result.scalars().all()
+
+    async def get_by_user_id(
+        self,
+        user_id: int,
+    ) -> Optional[TeamMember]:
+        base_query = select(TeamMember).where(TeamMember.participant_id == user_id)
+        result = await self._db.execute(base_query)
+        return result.scalar_one_or_none()
 
     async def create_team_member(
             self,

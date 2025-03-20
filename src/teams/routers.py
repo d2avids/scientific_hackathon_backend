@@ -1,13 +1,15 @@
 from typing import Annotated, Optional
+
 from fastapi import APIRouter, Depends, Query, status
+
 from openapi import AUTHENTICATION_RESPONSES
-from teams.dependencies import get_team_service
-from teams.services import TeamService
-from teams.schemas import TeamCreateUpdate, TeamInDB
 from pagination import PaginatedResponse, PaginationParams
 from teams import openapi
+from teams.dependencies import get_team_service
+from teams.schemas import TeamCreateUpdate, TeamInDB
+from teams.services import TeamService
 from users.models import User
-from users.permissions import require_mentor
+from users.permissions import ensure_team_member_or_mentor, require_mentor
 
 router = APIRouter()
 
@@ -41,11 +43,11 @@ async def create_team(
 )
 async def update_team(
     team_id: int,
-    update_data: TeamCreateUpdate = None,
+    update_data: TeamCreateUpdate,
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
-    return await service.update_team(team_id, update_data, current_user.id)
+    return await service.update_team(team_id, update_data)
 
 
 @router.delete(
@@ -60,7 +62,8 @@ async def update_team(
 )
 async def delete_team(
     team_id: int,
-    service: TeamService = Depends(get_team_service)
+    service: TeamService = Depends(get_team_service),
+    current_user: User = Depends(require_mentor)
 ):
     await service.delete_team(team_id)
 
@@ -71,13 +74,13 @@ async def delete_team(
         response_model=TeamInDB,
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_GET_RESPONSES,
             **openapi.TEAM_NOT_FOUND_RESPONSES
         }
 )
 async def get_team_by_id(
     team_id: int,
-    service: TeamService = Depends(get_team_service)
+    service: TeamService = Depends(get_team_service),
+    current_user: User = Depends(ensure_team_member_or_mentor)
 ):
     return await service.get_team_by_id(team_id)
 
@@ -88,7 +91,6 @@ async def get_team_by_id(
         response_model=PaginatedResponse[TeamInDB],
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_GET_ALL_RESPONSES,
             **openapi.TEAM_NOT_FOUND_RESPONSES
         }
 )
@@ -107,11 +109,12 @@ async def get_all_teams(
             description='Filter teams by mentor ID.'
         )] = None,
         service: TeamService = Depends(get_team_service),
+        current_user: User = Depends(require_mentor)
 ):
     return await service.get_all_teams(
         search=search,
         ordering=ordering,
         offset=pagination_params.offset,
-        limit=pagination_params.limit,
+        limit=pagination_params.per_page,
         mentor_id=mentor_id
     )

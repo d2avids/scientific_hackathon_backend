@@ -1,5 +1,6 @@
-from sqlalchemy import String, BigInteger, ForeignKey
+from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database import Base, CreatedUpdatedAt
 from projects.models import Project
 from users.models import Mentor, Participant

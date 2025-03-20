@@ -1,5 +1,7 @@
 from typing import Annotated, List, Optional
+
 from pydantic import Field, field_validator, model_validator
+
 from schemas import ConfiguredModel, CreatedUpdatedAt, IDModel
 
 
@@ -50,7 +52,7 @@ class TeamMentorID(ConfiguredModel):
 class TeamBase(ConfiguredModel):
     """Schema for creating a team."""
     name: Annotated[
-        str,
+        Optional[str],
         Field(
             ...,
             title='Team Name',
@@ -81,9 +83,9 @@ class TeamBase(ConfiguredModel):
 class TeamCreateUpdate(TeamBase):
     """Schema for creating a team."""
     team_members: Annotated[
-        List[TeamMemberCreateUpdate],
+        Optional[List[TeamMemberCreateUpdate]],
         Field(
-            ...,
+            default=None,
             title='Team Members',
             description='The members of the team.'
         )

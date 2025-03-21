@@ -78,3 +78,9 @@ FILE_UPLOAD_RELATED_RESPONSES = {
         }
     }
 }
+
+NOT_FOUND_RESPONSE = {
+    status.HTTP_404_NOT_FOUND: {
+        'description': 'Not found.',
+    }
+}

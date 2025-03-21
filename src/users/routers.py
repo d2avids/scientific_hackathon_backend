@@ -2,7 +2,7 @@ from typing import Annotated, Optional, Union
 
 from auth.services import get_current_user
 from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks
-from openapi import AUTHENTICATION_RESPONSES
+from openapi import AUTHENTICATION_RESPONSES, NOT_FOUND_RESPONSE
 from pagination import PaginatedResponse, PaginationParams
 from users.dependencies import get_regions_service, get_user_service, get_user_documents_service
 from users.models import User, UserDocument
@@ -206,6 +206,24 @@ async def verify_user(
     await service.decline_registration(user_id, background_tasks)
 
 
+@router.delete(
+    '/users/{user_id}',
+    tags=[f'{USERS_PREFIX} Delete'],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+    },
+    status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_user(
+        user_id: int,
+        service: UserService = Depends(get_user_service),
+        current_user: User = Depends(require_mentor),
+):
+    """## Delete user. Mentors rights required"""
+    await service.delete(user_id)
+
+
 @router.get(
     '/users/{user_id}/documents',
     tags=[USER_DOCUMENTS_PREFIX],
@@ -256,6 +274,7 @@ async def create_user_document(
     tags=[USER_DOCUMENTS_PREFIX],
     responses={
         **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE
     },
     status_code=status.HTTP_204_NO_CONTENT
 )

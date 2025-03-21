@@ -1,6 +1,10 @@
+from typing import Any, Dict
+
 from fastapi import status
 
-AUTHENTICATION_RESPONSES = {
+ResponseDict = Dict[int | str, Dict[str, Any]]
+
+AUTHENTICATION_RESPONSES: ResponseDict = {
     status.HTTP_401_UNAUTHORIZED: {
         'description': 'Unauthorized scenarios.',
         'content': {
@@ -46,7 +50,7 @@ AUTHENTICATION_RESPONSES = {
     }
 }
 
-FILE_UPLOAD_RELATED_RESPONSES = {
+FILE_UPLOAD_RELATED_RESPONSES: ResponseDict = {
     status.HTTP_415_UNSUPPORTED_MEDIA_TYPE: {
         'description': 'Unsupported photo file format.',
         'content': {

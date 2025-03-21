@@ -90,7 +90,11 @@ class Participant(CreatedUpdatedAt, Base):
     # relationships
     user: Mapped['User'] = relationship(back_populates='participant', single_parent=True)
     region: Mapped['Region'] = relationship(back_populates='participants', cascade='all, delete')
-    team_members: Mapped[list['TeamMember']] = relationship(back_populates='participant', cascade='all, delete-orphan')
+    team_members: Mapped['TeamMember'] = relationship(
+        back_populates='participant',
+        cascade='all, delete-orphan',
+        uselist=False
+    )
 
 
 class Mentor(CreatedUpdatedAt, Base):

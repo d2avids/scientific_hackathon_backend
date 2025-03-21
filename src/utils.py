@@ -221,6 +221,8 @@ class FileService:
             size_bytes=file_size,
             name=file_name
         )
+
+
 def clean_errors(errors: list[dict]) -> list[dict]:
     for err in errors:
         if 'ctx' in err and 'error' in err['ctx']:

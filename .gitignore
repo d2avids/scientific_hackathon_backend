@@ -218,3 +218,5 @@ GitHub.sublime-settings
 media/
 .log
 logs
+.flake8
+.mypy_cache/

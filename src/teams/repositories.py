@@ -7,7 +7,7 @@ from sqlalchemy.orm import joinedload
 
 from exceptions import NotFoundError
 from teams.models import Team, TeamMember
-from teams.schemas import TeamCreateUpdate, TeamMemberCreateUpdate
+from teams.schemas import TeamCreate, TeamMemberCreateUpdate
 
 
 class TeamRepo:
@@ -122,7 +122,7 @@ class TeamRepo:
 
     async def create(
             self,
-            team_data: TeamCreateUpdate,
+            team_data: TeamCreate,
     ) -> Team:
         async with self._db.begin():
             team = Team(**team_data.model_dump(exclude={'team_members'}))

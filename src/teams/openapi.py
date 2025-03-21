@@ -42,19 +42,10 @@ TEAM_CREATE_RESPONSES: ResponseDict = {
             }
         }
     },
-    status.HTTP_201_CREATED: {
-        'description': 'Team created successfully'
-    }
 }
 
 TEAM_UPDATE_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
         'description': 'Team with this name already exists'
-    },
-}
-
-TEAM_DELETE_RESPONSES: ResponseDict = {
-    status.HTTP_204_NO_CONTENT: {
-        'description': 'Team deleted successfully'
     },
 }

@@ -4,9 +4,9 @@ from fastapi import APIRouter, Depends, Query, status
 
 from openapi import AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
-from teams.openapi import TEAM_CREATE_RESPONSES, TEAM_UPDATE_RESPONSES, TEAM_DELETE_RESPONSES, TEAM_NOT_FOUND_RESPONSES
+from teams.openapi import TEAM_CREATE_RESPONSES, TEAM_UPDATE_RESPONSES, TEAM_NOT_FOUND_RESPONSES
 from teams.dependencies import get_team_service
-from teams.schemas import TeamCreateUpdate, TeamInDB
+from teams.schemas import TeamCreate, TeamInDB, TeamUpdate
 from teams.services import TeamService
 from users.models import User
 from users.permissions import ensure_team_member_or_mentor, require_mentor
@@ -21,9 +21,10 @@ TEAMS_PREFIX = 'Teams'
         tags=[TEAMS_PREFIX],
         response_model=TeamInDB,
         responses=TEAM_CREATE_RESPONSES,
+        status_code=status.HTTP_201_CREATED
 )
 async def create_team(
-    team: TeamCreateUpdate,
+    team: TeamCreate,
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
@@ -33,7 +34,7 @@ async def create_team(
 @router.patch(
         '/teams/{team_id}',
         tags=[TEAMS_PREFIX],
-        response_model=TeamCreateUpdate,
+        response_model=TeamUpdate,
         responses={
             **AUTHENTICATION_RESPONSES,
             **TEAM_UPDATE_RESPONSES,
@@ -42,7 +43,7 @@ async def create_team(
 )
 async def update_team(
     team_id: int,
-    update_data: TeamCreateUpdate,
+    update_data: TeamUpdate,
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
@@ -54,7 +55,6 @@ async def update_team(
         tags=[TEAMS_PREFIX],
         responses={
             **AUTHENTICATION_RESPONSES,
-            **TEAM_DELETE_RESPONSES,
             **TEAM_NOT_FOUND_RESPONSES
         },
         status_code=status.HTTP_204_NO_CONTENT

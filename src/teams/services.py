@@ -5,7 +5,7 @@ from sqlalchemy.exc import IntegrityError
 
 from exceptions import NotFoundError
 from teams.repositories import TeamRepo
-from teams.schemas import TeamCreateUpdate, TeamInDB, TeamMemberInDB
+from teams.schemas import TeamCreate, TeamInDB, TeamMemberInDB, TeamUpdate
 from utils import create_field_map_for_model, parse_ordering
 
 
@@ -15,12 +15,12 @@ class TeamService:
     def __init__(self, repo: TeamRepo):
         self._repo = repo
 
-    async def create_team(self, team: TeamCreateUpdate, mentor_id: int) -> TeamInDB:
+    async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDB:
         try:
 
             team_data = team.model_dump()
             team_data['mentor_id'] = mentor_id
-            team = TeamCreateUpdate(**team_data)
+            team = TeamCreate(**team_data)
 
             team_db = await self._repo.create(team_data=team)
             team_model = TeamInDB.model_validate(team_db)
@@ -35,7 +35,7 @@ class TeamService:
     async def update_team(
             self,
             team_id: int,
-            update_data: TeamCreateUpdate,
+            update_data: TeamUpdate,
     ) -> TeamInDB:
         try:
             if 'project_id' in update_data.model_fields_set and update_data.project_id is not None:
@@ -51,6 +51,12 @@ class TeamService:
             )
 
     async def delete_team(self, team_id: int) -> None:
+        team = await self._repo.get_by_id(team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team not found'
+            )
         await self._repo.delete_team(team_id)
 
     async def get_team_by_id(self, team_id: int) -> TeamInDB:

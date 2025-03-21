@@ -131,12 +131,10 @@ class TeamRepo:
 
             if team_data.team_members:
                 member_repo = TeamMemberRepo(self._db)
-                for member in team_data.team_members:
-                    member_data = member.model_dump()
-                    member_data['team_id'] = team.id
-                    member_create_instance = TeamMemberCreateUpdate(**member_data)
-                    await member_repo.create_team_member(member_create_instance)
-
+                members_sequence = (
+                    team_data.team_members if isinstance(team_data.team_members, Sequence) else [team_data.team_members]
+                )
+                await member_repo.create_several_team_members(members_sequence)
             await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
 
@@ -275,16 +273,16 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalar_one_or_none()
 
-    async def create_team_member(
+    async def create_several_team_members(
             self,
-            team_member_data: TeamMemberCreateUpdate,
-    ) -> TeamMember:
+            team_members_data: Sequence[TeamMemberCreateUpdate],
+    ) -> Sequence[TeamMember]:
         async with self._db.begin():
-            team_member = TeamMember(**team_member_data.model_dump())
-            self._db.add(team_member)
+            team_members = [TeamMember(**member.model_dump()) for member in team_members_data]
+            self._db.add_all(team_members)
             await self._db.flush()
-            await self._db.refresh(team_member, attribute_names=['team', 'participant'])
-        return team_member
+            await self._db.refresh(team_members, attribute_names=['team', 'participant'])
+        return team_members
 
     async def update_team_member(
             self,

@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, status
 
 from openapi import AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
-from teams import openapi
+from teams.openapi import TEAM_CREATE_RESPONSES, TEAM_UPDATE_RESPONSES, TEAM_DELETE_RESPONSES, TEAM_NOT_FOUND_RESPONSES
 from teams.dependencies import get_team_service
 from teams.schemas import TeamCreateUpdate, TeamInDB
 from teams.services import TeamService
@@ -20,8 +20,7 @@ TEAMS_PREFIX = 'Teams'
         '/teams',
         tags=[TEAMS_PREFIX],
         response_model=TeamInDB,
-        responses=openapi.TEAM_CREATE_RESPONSES,
-        openapi_extra=openapi.TEAM_CREATE_SCHEMA
+        responses=TEAM_CREATE_RESPONSES,
 )
 async def create_team(
     team: TeamCreateUpdate,
@@ -37,8 +36,8 @@ async def create_team(
         response_model=TeamCreateUpdate,
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_UPDATE_RESPONSES,
-            **openapi.TEAM_NOT_FOUND_RESPONSES
+            **TEAM_UPDATE_RESPONSES,
+            **TEAM_NOT_FOUND_RESPONSES
         }
 )
 async def update_team(
@@ -55,8 +54,8 @@ async def update_team(
         tags=[TEAMS_PREFIX],
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_DELETE_RESPONSES,
-            **openapi.TEAM_NOT_FOUND_RESPONSES
+            **TEAM_DELETE_RESPONSES,
+            **TEAM_NOT_FOUND_RESPONSES
         },
         status_code=status.HTTP_204_NO_CONTENT
 )
@@ -74,7 +73,7 @@ async def delete_team(
         response_model=TeamInDB,
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_NOT_FOUND_RESPONSES
+            **TEAM_NOT_FOUND_RESPONSES
         }
 )
 async def get_team_by_id(
@@ -91,7 +90,7 @@ async def get_team_by_id(
         response_model=PaginatedResponse[TeamInDB],
         responses={
             **AUTHENTICATION_RESPONSES,
-            **openapi.TEAM_NOT_FOUND_RESPONSES
+            **TEAM_NOT_FOUND_RESPONSES
         }
 )
 async def get_all_teams(

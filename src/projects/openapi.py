@@ -1,7 +1,7 @@
 from fastapi import status
 from openapi import FILE_UPLOAD_RELATED_RESPONSES
 
-PROJECT_CREATE_SCHEMA = {
+PROJECT_CREATE_UPDATE_SCHEMA = {
     'requestBody': {
         'content': {
             'multipart/form-data': {

@@ -1,15 +1,16 @@
-from typing import Annotated, Optional
+from typing import Annotated, Optional, Union
 
 from auth.services import get_current_user
 from fastapi import APIRouter, Depends, status, Query, UploadFile, Form
 from openapi import NOT_FOUND_RESPONSE, AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
 from projects.dependencies import get_project_service
-from projects.openapi import PROJECT_CREATE_RESPONSES, PROJECT_CREATE_SCHEMA
+from projects.openapi import PROJECT_CREATE_RESPONSES, PROJECT_CREATE_UPDATE_SCHEMA
 from projects.schemas import ProjectInDB, ProjectWithStepsInDB
 from projects.services import ProjectService
 from users.models import User
 from users.permissions import require_mentor
+from utils import FileService
 
 router = APIRouter(prefix='/projects')
 
@@ -38,14 +39,14 @@ async def get_projects(
         current_user: User = Depends(get_current_user),
 ):
     """## Get paginated list of projects. Authenticated user required"""
-    projects_in_db, total, total_pages = await service.get_all(
+    projects, total, total_pages = await service.get_all(
         search=search,
         ordering=ordering,
         offset=pagination_params.offset,
         limit=pagination_params.per_page
     )
     return PaginatedResponse(
-        items=projects_in_db,
+        items=[ProjectInDB.model_validate(p) for p in projects],
         per_page=pagination_params.per_page,
         page=pagination_params.page,
         total=total,
@@ -62,7 +63,7 @@ async def get_projects(
         **AUTHENTICATION_RESPONSES,
     },
     status_code=status.HTTP_201_CREATED,
-    openapi_extra=PROJECT_CREATE_SCHEMA
+    openapi_extra=PROJECT_CREATE_UPDATE_SCHEMA
 )
 async def create_project(
         data: Annotated[str, Form(..., description='JSON string of user data')],
@@ -71,7 +72,8 @@ async def create_project(
         current_user: User = Depends(require_mentor)
 ):
     """## Create project. Mentor right required"""
-    return await service.create(data, document)
+    project = await service.create(data, document)
+    return ProjectInDB.model_validate(project)
 
 
 @router.get(
@@ -89,7 +91,29 @@ async def get_project(
         current_user: User = Depends(get_current_user),
 ):
     """## Get project by id. Authenticated user required"""
-    return await service.get_by_id(project_id)
+    project = await service.get_by_id(project_id)
+    return ProjectWithStepsInDB.model_validate(project)
+
+
+@router.patch(
+    '/{project_id}',
+    tags=[PROJECT_TAG],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+    },
+    openapi_extra=PROJECT_CREATE_UPDATE_SCHEMA,
+)
+async def update_project(
+        project_id: int,
+        data: Annotated[str, Form(description='JSON string of project data')] = None,
+        document: Union[UploadFile, str, None] = Depends(FileService.create_parse_optional_file('document')),
+        service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(require_mentor),
+):
+    """## Update project by id. Mentor rights required"""
+    project = await service.update(project_id, data, document)
+    return ProjectInDB.model_validate(project)
 
 
 @router.delete(

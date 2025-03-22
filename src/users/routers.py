@@ -151,7 +151,7 @@ async def create_user(
 async def update_user(
         user_id: int,
         data: Annotated[str, Form(description="JSON string of user data")] = None,
-        photo: Union[UploadFile, str, None] = Depends(FileService.parse_optional_file),
+        photo: Union[UploadFile, str, None] = Depends(FileService.create_parse_optional_file('photo')),
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(ensure_owner_or_admin),
 ):

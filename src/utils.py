@@ -3,12 +3,12 @@ import traceback
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional, Union, Callable
 from typing import Type, Literal
 
 import aiofiles
 import aiosmtplib as aiosmtp
-from fastapi import UploadFile, HTTPException, status
+from fastapi import UploadFile, HTTPException, status, File
 from pydantic import BaseModel
 from settings import BASE_DIR, settings
 
@@ -122,13 +122,16 @@ class FileUploadResult:
 
 class FileService:
     @staticmethod
-    async def parse_optional_file(
-            photo: Union[UploadFile, str, None] = None
-    ) -> Union[UploadFile, str, None]:
-        """Validate that string can only be as an empty value."""
-        if isinstance(photo, str):
-            return ''
-        return photo
+    def create_parse_optional_file(field_name: str):
+
+        async def parse_optional_file(
+                file: Union[UploadFile, str, None] = File(None, alias=field_name)
+        ) -> Union[UploadFile, str, None]:
+            if isinstance(file, str):
+                return ''
+            return file
+
+        return parse_optional_file
 
     @staticmethod
     async def construct_full_path_from_relative_path(relative_path: str) -> Path:

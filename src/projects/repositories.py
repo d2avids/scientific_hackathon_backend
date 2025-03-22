@@ -1,7 +1,8 @@
 from typing import Literal, Tuple, Sequence, Optional
 
+from exceptions import NotFoundError
 from projects.models import Project, Step
-from projects.schemas import ProjectCreate
+from projects.schemas import ProjectCreate, ProjectUpdate
 from sqlalchemy import select, func, asc, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -74,6 +75,14 @@ class ProjectRepo:
                 )
             self._db.add_all(steps_to_create)
             await self._db.flush()
+        return project
+
+    async def update(self, update_data: dict, project: Project):
+        for key, val in update_data.items():
+            if hasattr(project, key):
+                setattr(project, key, val)
+        await self._db.commit()
+        await self._db.refresh(project)
         return project
 
     async def set_document_path(self, project: Project, document_path: str) -> None:

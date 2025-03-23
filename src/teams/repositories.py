@@ -119,6 +119,17 @@ class TeamRepo:
         result = await self._db.execute(query)
         return result.scalar_one_or_none()
 
+    async def get_by_role_name(
+        self,
+        name: str,
+        team_id: int,
+    ) -> Optional[Team]:
+        base_query = select(Team).where(Team.id == team_id)
+        base_query = base_query.where(Team.team_members.any(TeamMember.role_name.ilike(f'%{name}%')))
+        base_query = self._add_team_joins(base_query, team_members_join=True)
+        result = await self._db.execute(base_query)
+        return result.scalars().unique().one_or_none()
+
     async def create(
             self,
             team_data: TeamCreate,
@@ -319,7 +330,15 @@ class TeamMemberRepo:
 
     async def delete_team_member(
             self,
-            team_member: TeamMember,
+            team_member_id: int,
     ) -> None:
-        await self._db.execute(delete(TeamMember).where(TeamMember.id == team_member.id))
+        await self._db.execute(delete(TeamMember).where(TeamMember.id == team_member_id))
         await self._db.commit()
+
+    async def get_by_name(
+        self,
+        name: str,
+    ) -> Optional[TeamMember]:
+        base_query = select(TeamMember).where(TeamMember.role_name.ilike(f'%{name}%'))
+        result = await self._db.execute(base_query)
+        return result.scalars().unique().one_or_none()

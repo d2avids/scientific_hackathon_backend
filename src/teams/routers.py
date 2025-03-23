@@ -5,9 +5,9 @@ from fastapi import APIRouter, Depends, Query, status
 from openapi import AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
 from teams.openapi import TEAM_CREATE_RESPONSES, TEAM_UPDATE_RESPONSES, TEAM_NOT_FOUND_RESPONSES
-from teams.dependencies import get_team_service
-from teams.schemas import TeamCreate, TeamInDB, TeamUpdate
-from teams.services import TeamService
+from teams.dependencies import get_team_member_service, get_team_service
+from teams.schemas import TeamCreate, TeamInDB, TeamMemberCreateUpdate, TeamMemberInDB, TeamUpdate
+from teams.services import TeamMemberService, TeamService
 from users.models import User
 from users.permissions import ensure_team_member_or_mentor, require_mentor
 
@@ -124,3 +124,40 @@ async def get_all_teams(
         per_page=pagination_params.per_page,
         total_pages=total_pages
     )
+
+
+@router.post(
+    '/teams/{team_id}/members',
+    tags=[TEAMS_PREFIX],
+    response_model=list[TeamMemberInDB],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **TEAM_NOT_FOUND_RESPONSES
+    },
+    status_code=status.HTTP_201_CREATED
+)
+async def add_team_members(
+    team_id: int,
+    members: list[TeamMemberCreateUpdate],
+    service: TeamMemberService = Depends(get_team_member_service),
+    current_user: User = Depends(require_mentor)
+):
+    return await service.create_several_team_members(team_id, members)
+
+
+@router.delete(
+    '/teams/{team_id}/members/{team_member_id}',
+    tags=[TEAMS_PREFIX],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **TEAM_NOT_FOUND_RESPONSES
+    },
+    status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_team_member(
+    team_id: int,
+    team_member_id: int,
+    service: TeamMemberService = Depends(get_team_member_service),
+    current_user: User = Depends(require_mentor)
+):
+    await service.delete_team_member(team_id, team_member_id)

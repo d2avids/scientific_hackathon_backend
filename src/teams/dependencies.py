@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db_session
 from teams.repositories import TeamMemberRepo, TeamRepo
-from teams.services import TeamService
+from teams.services import TeamMemberService, TeamService
 
 
 async def get_team_repo(db: AsyncSession = Depends(get_db_session)) -> TeamRepo:
@@ -16,3 +16,7 @@ async def get_team_service(repo: TeamRepo = Depends(get_team_repo)) -> TeamServi
 
 async def get_team_member_repo(db: AsyncSession = Depends(get_db_session)) -> TeamMemberRepo:
     return TeamMemberRepo(db)
+
+
+async def get_team_member_service(repo: TeamMemberRepo = Depends(get_team_member_repo)) -> TeamMemberService:
+    return TeamMemberService(repo)

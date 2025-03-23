@@ -66,7 +66,8 @@ class TeamMember(CreatedUpdatedAt, Base):
         BigInteger,
         ForeignKey('participants.id', ondelete='CASCADE'),
         nullable=False,
-        index=True
+        index=True,
+        unique=True
     )
     role_name: Mapped[str] = mapped_column(String(250), nullable=False)
 

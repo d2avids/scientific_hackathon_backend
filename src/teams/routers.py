@@ -110,10 +110,17 @@ async def get_all_teams(
         service: TeamService = Depends(get_team_service),
         current_user: User = Depends(require_mentor)
 ):
-    return await service.get_all_teams(
+    teams, total, total_pages = await service.get_all_teams(
         search=search,
         ordering=ordering,
         offset=pagination_params.offset,
         limit=pagination_params.per_page,
         mentor_id=mentor_id
+    )
+    return PaginatedResponse[TeamInDB](
+        items=[team for team in teams if team is not None],
+        total=total,
+        page=pagination_params.page,
+        per_page=pagination_params.per_page,
+        total_pages=total_pages
     )

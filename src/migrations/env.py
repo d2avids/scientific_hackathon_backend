@@ -10,6 +10,7 @@ from alembic import context
 from database import Base
 from users.models import User, Region, Participant, Mentor, UserDocument
 from projects.models import Project, Step
+from teams.models import Team, TeamMember
 from settings import settings
 
 __all__ = [
@@ -20,7 +21,9 @@ __all__ = [
     'Mentor',
     'Participant',
     'Project',
-    'Step'
+    'Step',
+    'Team',
+    'TeamMember'
 ]
 
 # this is the Alembic Config object, which provides

@@ -54,12 +54,13 @@ class TeamBase(ConfiguredModel):
 
     @model_validator(mode='after')
     def validate_single_captain(self):
-        captain_count = sum(
-            1 for member in self.team_members
-            if member.role_name and 'капитан' in member.role_name.lower()
-        )
-        if captain_count > 1:
-            raise ValueError('Team can have only one captain')
+        if self.team_members:
+            captain_count = sum(
+                1 for member in self.team_members
+                if member.role_name and 'капитан' in member.role_name.lower()
+            )
+            if captain_count > 1:
+                raise ValueError('Team can have only one captain')
         return self
 
 

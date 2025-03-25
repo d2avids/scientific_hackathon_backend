@@ -96,9 +96,6 @@ class ProjectService:
             document: UploadFile
     ) -> Project:
         project = await self.get_by_id(project_id)
-        print(11111)
-        print(update_data)
-        print(document)
         if update_data:
             try:
                 data_dict = json.loads(update_data)
@@ -143,10 +140,7 @@ class ProjectService:
                 ],
                 size_limit_megabytes=10
             )
-            print('ДОКУМЕНТ ЕСТЬ')
             update_dict['document_path'] = result.relative_path
-
-        print(update_dict)
 
         return await self._repo.update(update_dict, project)
 

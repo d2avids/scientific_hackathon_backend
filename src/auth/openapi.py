@@ -1,7 +1,7 @@
 from fastapi import status
-from openapi import AUTHENTICATION_RESPONSES
+from openapi import AUTHENTICATION_RESPONSES, ResponseDict
 
-LOGIN_RESPONSES = {
+LOGIN_RESPONSES: ResponseDict = {
     status.HTTP_401_UNAUTHORIZED: {
         'description': 'Incorrect credentials',
         'content': {
@@ -26,10 +26,10 @@ LOGIN_RESPONSES = {
     }
 }
 
-REFRESH_TOKEN_RESPONSES = {**AUTHENTICATION_RESPONSES}
+REFRESH_TOKEN_RESPONSES: ResponseDict = {**AUTHENTICATION_RESPONSES}
 REFRESH_TOKEN_RESPONSES.pop(status.HTTP_403_FORBIDDEN)
 
-CHANGE_PASSWORD_RESPONSES = {
+CHANGE_PASSWORD_RESPONSES: ResponseDict = {
     status.HTTP_403_FORBIDDEN: {
         'description': 'Incorrect old password',
         'content': {
@@ -44,7 +44,7 @@ CHANGE_PASSWORD_RESPONSES = {
     }
 }
 
-RESET_PASSWORD_CALLBACK_RESPONSES = {
+RESET_PASSWORD_CALLBACK_RESPONSES: ResponseDict = {
     status.HTTP_403_FORBIDDEN: {
         'description': 'Invalid or expired token',
         'content': {

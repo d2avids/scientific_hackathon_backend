@@ -1,6 +1,7 @@
 from typing import Annotated
 
 from pydantic import Field, field_validator
+
 from schemas import ConfiguredModel
 from utils import validate_password
 

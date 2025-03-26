@@ -1,4 +1,5 @@
 from fastapi import status
+
 from openapi import AUTHENTICATION_RESPONSES, ResponseDict
 
 LOGIN_RESPONSES: ResponseDict = {

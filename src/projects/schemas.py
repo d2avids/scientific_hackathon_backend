@@ -3,6 +3,7 @@ from typing import Annotated, Optional
 from urllib.parse import urljoin
 
 from pydantic import Field, field_serializer, model_validator
+
 from schemas import ConfiguredModel, IDModel
 from settings import settings
 
@@ -30,7 +31,6 @@ class ProjectInDB(ProjectBase, IDModel):
     document_path: Annotated[
         Optional[str],
         Field(
-            ...,
             title='Document path',
         )
     ]
@@ -51,7 +51,6 @@ class ProjectInDB(ProjectBase, IDModel):
     updated_at: Annotated[
         Optional[datetime],
         Field(
-            ...,
             title='Updated at',
         )
     ]
@@ -82,7 +81,6 @@ class ProjectUpdate(ConfiguredModel):
     name: Annotated[
         Optional[str],
         Field(
-            ...,
             title='Project name',
             max_length=50,
         )
@@ -90,7 +88,6 @@ class ProjectUpdate(ConfiguredModel):
     description: Annotated[
         Optional[str],
         Field(
-            ...,
             title='Project description',
             max_length=500,
         )
@@ -128,7 +125,6 @@ class StepInDB(ConfiguredModel, IDModel):
     text: Annotated[
         Optional[str],
         Field(
-            ...,
             title='Team\'s answer on this step',
         )
     ]
@@ -156,7 +152,6 @@ class StepInDB(ConfiguredModel, IDModel):
     updated_at: Annotated[
         Optional[datetime],
         Field(
-            ...,
             title='Updated at',
         )
     ]

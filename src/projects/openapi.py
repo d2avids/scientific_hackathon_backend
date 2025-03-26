@@ -1,4 +1,5 @@
 from fastapi import status
+
 from openapi import FILE_UPLOAD_RELATED_RESPONSES, ResponseDict
 
 PROJECT_CREATE_UPDATE_SCHEMA = {

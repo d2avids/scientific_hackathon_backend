@@ -1,7 +1,8 @@
-from typing import Annotated, Optional, Union
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, status, Query, UploadFile, Form, File
 
 from auth.services import get_current_user
-from fastapi import APIRouter, Depends, status, Query, UploadFile, Form
 from openapi import NOT_FOUND_RESPONSE, AUTHENTICATION_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
 from projects.dependencies import get_project_service
@@ -107,7 +108,7 @@ async def get_project(
 async def update_project(
         project_id: int,
         data: Annotated[str, Form(description='JSON string of project data')] = None,
-        document: Union[UploadFile, str, None] = Depends(FileService.create_parse_optional_file('document')),
+        document: Optional[UploadFile] = File(None),
         service: ProjectService = Depends(get_project_service),
         current_user: User = Depends(require_mentor),
 ):

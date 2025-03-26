@@ -1,7 +1,8 @@
 from typing import Annotated, Optional, Union
 
-from auth.services import get_current_user
 from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks
+
+from auth.services import get_current_user
 from openapi import AUTHENTICATION_RESPONSES, NOT_FOUND_RESPONSE
 from pagination import PaginatedResponse, PaginationParams
 from users.dependencies import get_regions_service, get_user_service, get_user_documents_service

@@ -1,6 +1,6 @@
 import json
 from math import ceil
-from typing import Optional, Tuple
+from typing import Optional
 
 from auth.config import PasswordEncryption
 from fastapi import status, HTTPException, UploadFile, BackgroundTasks
@@ -21,12 +21,12 @@ class UserService:
 
     async def get_all(
             self,
-            search: str = None,
-            is_mentor: bool = None,
-            ordering: str = None,
+            search: Optional[str] = None,
+            is_mentor: Optional[bool] = None,
+            ordering: Optional[str] = None,
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[list[UserInDB], int, int]:
+    ) -> tuple[list[UserInDB], int, int]:
         """Returns tuple: (list of pydantic models, total, total_pages)."""
         order_column, order_direction = parse_ordering(ordering, field_map=self.field_map)
 
@@ -289,6 +289,6 @@ class RegionService:
     def __init__(self, repo: RegionRepo):
         self._repo = repo
 
-    async def get_all(self, search: str, name: str, code: int) -> list[RegionInDB]:
+    async def get_all(self, search: Optional[str], name: Optional[str], code: Optional[int]) -> list[RegionInDB]:
         regions = await self._repo.get_all(search, name, code)
         return [RegionInDB.model_validate(region) for region in regions]

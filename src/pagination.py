@@ -1,6 +1,7 @@
 from typing import Generic, List, TypeVar
 
 from fastapi import Query
+
 from schemas import ConfiguredModel
 from settings import settings
 

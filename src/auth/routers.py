@@ -1,3 +1,12 @@
+from fastapi import (
+    Depends,
+    APIRouter,
+    Body,
+    status,
+    BackgroundTasks
+)
+from pydantic import EmailStr
+
 from auth.config import TokenType, JWT
 from auth.openapi import (
     LOGIN_RESPONSES,
@@ -19,14 +28,6 @@ from auth.services import (
     reset_password_service,
     reset_password_callback_service
 )
-from fastapi import (
-    Depends,
-    APIRouter,
-    Body,
-    status,
-    BackgroundTasks
-)
-from pydantic import EmailStr
 from users.dependencies import get_user_repo
 from users.models import User
 from users.repositories import UserRepo
@@ -40,7 +41,7 @@ router = APIRouter(prefix='/auth', tags=['Auth'])
     response_model=TokenOut
 )
 async def login(
-        email: str = Body(..., title='Email'),
+        email: EmailStr = Body(..., title='Email'),
         password: str = Body(..., title='Password'),
         token_response: TokenOut = Depends(login),
 ):

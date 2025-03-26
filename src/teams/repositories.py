@@ -275,11 +275,10 @@ class TeamMemberRepo:
             self,
             team_members_data: Sequence[TeamMemberCreateUpdate],
     ) -> Sequence[TeamMember]:
-        async with self._db.begin():
-            team_members = [TeamMember(**member.model_dump()) for member in team_members_data]
-            self._db.add_all(team_members)
-            await self._db.flush()
-            await self._db.refresh(team_members, attribute_names=['team', 'participant'])
+        team_members = [TeamMember(**member.model_dump()) for member in team_members_data]
+        self._db.add_all(team_members)
+        await self._db.flush()
+        await self._db.refresh(team_members, attribute_names=['team', 'participant'])
         return team_members
 
     async def update_team_member(
@@ -287,15 +286,14 @@ class TeamMemberRepo:
             team_member_id: int,
             update_data: dict,
     ) -> TeamMember:
-        async with self._db.begin():
-            team_member = await self.get_by_id(team_member_id)
-            if not team_member:
-                raise NotFoundError('Team member not found')
-            for key, value in update_data.items():
-                setattr(team_member, key, value)
-            self._db.add(team_member)
-            await self._db.commit()
-            await self._db.refresh(team_member)
+        team_member = await self.get_by_id(team_member_id)
+        if not team_member:
+            raise NotFoundError('Team member not found')
+        for key, value in update_data.items():
+            setattr(team_member, key, value)
+        self._db.add(team_member)
+        await self._db.commit()
+        await self._db.refresh(team_member)
         return team_member
 
     async def delete_team_member(

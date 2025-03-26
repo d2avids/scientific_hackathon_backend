@@ -1,10 +1,11 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Optional
 
-from database import Base, CreatedUpdatedAt
-from projects.constants import ProjectStatus
 from sqlalchemy import String, BigInteger, Integer, SmallInteger, ForeignKey, TIMESTAMP
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from database import Base, CreatedUpdatedAt
+from projects.constants import ProjectStatus
 
 if TYPE_CHECKING:
     from teams.models import Team

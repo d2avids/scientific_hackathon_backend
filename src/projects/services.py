@@ -1,6 +1,6 @@
 import json
 from math import ceil
-from typing import Tuple, Sequence
+from typing import Sequence, Optional
 
 from fastapi import UploadFile, HTTPException, status
 from pydantic_core import ValidationError
@@ -46,11 +46,11 @@ class ProjectService:
     async def get_all(
             self,
             *,
-            search: str = None,
-            ordering: str = 'id',
+            search: Optional[str] = None,
+            ordering: Optional[str] = 'id',
             offset: int = 10,
             limit: int = 10,
-    ) -> Tuple[Sequence[Project], int, int]:
+    ) -> tuple[Sequence[Project], int, int]:
         order_column, order_direction = parse_ordering(ordering, self.field_map)
 
         result, total = await self._repo.get_all(
@@ -97,7 +97,7 @@ class ProjectService:
             self,
             project_id: int,
             update_data: str,
-            document: UploadFile
+            document: Optional[UploadFile]
     ) -> Project:
         project = await self.get_by_id(project_id)
         if update_data:
@@ -125,12 +125,6 @@ class ProjectService:
             update_dict = update_model.model_dump(exclude_unset=True)
         else:
             update_dict = {}
-
-        if document == '':
-            if project.document_path:
-                old_document_full_path = await FileService.construct_full_path_from_relative_path(project.document_path)
-                await FileService.delete_file_from_fs(old_document_full_path)
-                update_dict['document_path'] = None
 
         if document:
             result = await self._upload_document(document, str(project.id))

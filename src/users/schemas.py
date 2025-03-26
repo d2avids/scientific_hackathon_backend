@@ -3,6 +3,7 @@ from typing import Optional, Annotated
 from urllib.parse import urljoin
 
 from pydantic import Field, EmailStr, model_validator, field_serializer, field_validator
+
 from schemas import ConfiguredModel, CreatedUpdatedAt, IDModel
 from settings import settings
 from utils import validate_password

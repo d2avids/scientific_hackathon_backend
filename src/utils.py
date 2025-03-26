@@ -3,13 +3,14 @@ import traceback
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Optional, Union, Callable
+from typing import Optional, Union
 from typing import Type, Literal
 
 import aiofiles
 import aiosmtplib as aiosmtp
 from fastapi import UploadFile, HTTPException, status, File
 from pydantic import BaseModel
+
 from settings import BASE_DIR, settings
 
 

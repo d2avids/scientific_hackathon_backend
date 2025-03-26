@@ -86,11 +86,10 @@ class UserRepo:
             user_data: UserCreate,
             mentor_data: MentorCreate
     ) -> tuple[User, Mentor]:
-        async with self._db.begin():
-            user = await self._create_user(user_data)
-            mentor_data = mentor_data.model_dump()
-            mentor_data.update({'user_id': user.id})
-            mentor = await self._create_mentor(mentor_data)
+        user = await self._create_user(user_data)
+        mentor_data = mentor_data.model_dump()
+        mentor_data.update({'user_id': user.id})
+        mentor = await self._create_mentor(mentor_data)
         return user, mentor
 
     async def create_user_and_participant(
@@ -98,11 +97,10 @@ class UserRepo:
             user_data: UserCreate,
             participant_data: ParticipantCreate
     ) -> tuple[User, Participant]:
-        async with self._db.begin():
-            user = await self._create_user(user_data)
-            participant_data = participant_data.model_dump()
-            participant_data.update(({'user_id': user.id}))
-            participant = await self._create_participant(participant_data)
+        user = await self._create_user(user_data)
+        participant_data = participant_data.model_dump()
+        participant_data.update(({'user_id': user.id}))
+        participant = await self._create_participant(participant_data)
         return user, participant
 
     async def _create_user(self, data: UserCreate) -> User:

@@ -8,7 +8,7 @@ from pydantic_core import ValidationError
 from projects.models import Project
 from projects.repositories import ProjectRepo
 from projects.schemas import ProjectInDB, ProjectCreate, ProjectUpdate
-from utils import create_field_map_for_model, parse_ordering, FileService, clean_errors
+from utils import create_field_map_for_model, parse_ordering, FileService, clean_errors, FileUploadResult
 
 
 class ProjectService:
@@ -16,6 +16,20 @@ class ProjectService:
 
     def __init__(self, repo: ProjectRepo):
         self._repo = repo
+
+    @staticmethod
+    async def _upload_document(document: UploadFile, project_id: str) -> FileUploadResult:
+        return await FileService.upload_file(
+            document,
+            path_segments=['projects', project_id],
+            allowed_mime_types=[
+                'application/pdf',
+                'text/plain',
+                'application/msword',
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            ],
+            size_limit_megabytes=10
+        )
 
     async def get_by_id(
             self,
@@ -74,17 +88,7 @@ class ProjectService:
 
         project = await self._repo.create(create_model)
 
-        result = await FileService.upload_file(
-            document,
-            path_segments=['projects', str(project.id)],
-            allowed_mime_types=[
-                'application/pdf',
-                'text/plain',
-                'application/msword',
-                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-            ],
-            size_limit_megabytes=10
-        )
+        result = await self._upload_document(document, str(project.id))
         await self._repo.set_document_path(project, result.relative_path)
 
         return project
@@ -129,17 +133,7 @@ class ProjectService:
                 update_dict['document_path'] = None
 
         if document:
-            result = await FileService.upload_file(
-                document,
-                path_segments=['projects', str(project.id)],
-                allowed_mime_types=[
-                    'application/pdf',
-                    'text/plain',
-                    'application/msword',
-                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                ],
-                size_limit_megabytes=10
-            )
+            result = await self._upload_document(document, str(project.id))
             update_dict['document_path'] = result.relative_path
 
         return await self._repo.update(update_dict, project)

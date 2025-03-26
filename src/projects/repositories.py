@@ -1,11 +1,11 @@
 from typing import Literal, Tuple, Sequence, Optional
 
-from exceptions import NotFoundError
-from projects.models import Project, Step
-from projects.schemas import ProjectCreate, ProjectUpdate
 from sqlalchemy import select, func, asc, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+
+from projects.models import Project, Step
+from projects.schemas import ProjectCreate
 
 
 class ProjectRepo:
@@ -13,7 +13,7 @@ class ProjectRepo:
         self._db = db
 
     async def get_by_id(self, project_id: int, join_steps: bool = False) -> Optional[Project]:
-        base_query = select(Project).where(Project.id == project_id)
+        base_query = select(Project).where(Project.id == project_id)  # type: ignore
         if join_steps:
             base_query = base_query.options(
                 joinedload(Project.steps)

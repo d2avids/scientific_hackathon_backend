@@ -1,4 +1,4 @@
-from typing import Optional, Sequence, Literal, Tuple
+from typing import Optional, Sequence, Literal
 
 from exceptions import NotFoundError
 from sqlalchemy import func, select, delete, or_, asc, desc
@@ -15,13 +15,13 @@ class UserRepo:
     async def get_all(
             self,
             *,
-            search: str = None,
-            is_mentor: bool = None,
-            order_column: str = 'id',
+            search: Optional[str] = None,
+            is_mentor: Optional[bool] = None,
+            order_column: Optional[str] = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[Sequence[User], int]:
+    ) -> tuple[Sequence[User], int]:
         base_query = select(User)
 
         filters = []
@@ -86,11 +86,10 @@ class UserRepo:
             user_data: UserCreate,
             mentor_data: MentorCreate
     ) -> tuple[User, Mentor]:
-        async with self._db.begin():
-            user = await self._create_user(user_data)
-            mentor_data = mentor_data.model_dump()
-            mentor_data.update({'user_id': user.id})
-            mentor = await self._create_mentor(mentor_data)
+        user = await self._create_user(user_data)
+        mentor_data = mentor_data.model_dump()
+        mentor_data.update({'user_id': user.id})
+        mentor = await self._create_mentor(mentor_data)
         return user, mentor
 
     async def create_user_and_participant(
@@ -98,11 +97,10 @@ class UserRepo:
             user_data: UserCreate,
             participant_data: ParticipantCreate
     ) -> tuple[User, Participant]:
-        async with self._db.begin():
-            user = await self._create_user(user_data)
-            participant_data = participant_data.model_dump()
-            participant_data.update(({'user_id': user.id}))
-            participant = await self._create_participant(participant_data)
+        user = await self._create_user(user_data)
+        participant_data = participant_data.model_dump()
+        participant_data.update(({'user_id': user.id}))
+        participant = await self._create_participant(participant_data)
         return user, participant
 
     async def _create_user(self, data: UserCreate) -> User:
@@ -223,7 +221,7 @@ class RegionRepo:
     def __init__(self, db: AsyncSession):
         self._db = db
 
-    async def get_all(self, search: str, name: str, code: int) -> Sequence[Region]:
+    async def get_all(self, search: Optional[str], name: Optional[str], code: Optional[int]) -> Sequence[Region]:
         query = select(Region)
         if search:
             query = query.where(Region.name.ilike(f'%{search}%'))

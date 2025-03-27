@@ -1,6 +1,8 @@
 from typing import Optional, TYPE_CHECKING
+
 from sqlalchemy import Boolean, String, SmallInteger, BigInteger, ForeignKey, Date, Float
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from database import Base, CreatedUpdatedAt
 
 if TYPE_CHECKING:

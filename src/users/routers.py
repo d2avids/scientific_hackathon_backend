@@ -1,7 +1,8 @@
 from typing import Annotated, Optional, Union
 
-from auth.services import get_current_user
 from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks
+
+from auth.services import get_current_user
 from openapi import AUTHENTICATION_RESPONSES, NOT_FOUND_RESPONSE
 from pagination import PaginatedResponse, PaginationParams
 from users.dependencies import get_regions_service, get_user_service, get_user_documents_service
@@ -151,7 +152,7 @@ async def create_user(
 async def update_user(
         user_id: int,
         data: Annotated[str, Form(description="JSON string of user data")] = None,
-        photo: Union[UploadFile, str, None] = Depends(FileService.parse_optional_file),
+        photo: Union[UploadFile, str, None] = Depends(FileService.create_parse_optional_file('photo')),
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(ensure_owner_or_admin),
 ):

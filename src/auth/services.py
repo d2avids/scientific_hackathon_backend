@@ -1,10 +1,11 @@
 from typing import Union
 
+from fastapi import status, HTTPException, Depends, Body, BackgroundTasks
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+
 from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, ResetCodeStorage
 from auth.config import PasswordEncryption, TokenType, JWT
 from auth.schemas import TokenOut
-from fastapi import status, HTTPException, Depends, Body, BackgroundTasks
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from settings import settings
 from users.dependencies import get_user_repo
 from users.models import User

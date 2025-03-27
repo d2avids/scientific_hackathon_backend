@@ -8,6 +8,7 @@ from typing import Optional
 import jwt
 from fastapi import status, HTTPException
 from passlib.context import CryptContext
+
 from settings import settings
 
 pwd_context = CryptContext(schemes=['bcrypt'], deprecated='auto')

@@ -1,9 +1,10 @@
 import copy
 
 from fastapi import status
-from openapi import FILE_UPLOAD_RELATED_RESPONSES
 
-USER_GET_RESPONSES = {
+from openapi import FILE_UPLOAD_RELATED_RESPONSES, ResponseDict
+
+USER_GET_RESPONSES: ResponseDict = {
     status.HTTP_404_NOT_FOUND: {
         'description': 'User not found',
         'content': {
@@ -16,7 +17,7 @@ USER_GET_RESPONSES = {
     }
 }
 
-USER_CREATE_RESPONSES = {
+USER_CREATE_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
         'description': 'User already exists or region_id does not exist',
         'content': {
@@ -29,7 +30,7 @@ USER_CREATE_RESPONSES = {
     }
 }
 
-USER_UPDATE_RESPONSES = {
+USER_UPDATE_RESPONSES: ResponseDict = {
     **FILE_UPLOAD_RELATED_RESPONSES,
     status.HTTP_400_BAD_REQUEST: {
         'description': 'Invalid JSON in user_data field or data string must be a valid JSON.',
@@ -209,7 +210,7 @@ USER_UPDATE_SCHEMA = {
     }
 }
 
-USER_DOCUMENTS_CREATE_RESPONSES = copy.deepcopy(FILE_UPLOAD_RELATED_RESPONSES)
+USER_DOCUMENTS_CREATE_RESPONSES: ResponseDict = copy.deepcopy(FILE_UPLOAD_RELATED_RESPONSES)
 USER_DOCUMENTS_CREATE_RESPONSES[status.HTTP_409_CONFLICT] = {
     'description': 'Conflict error scenarios.',
     'content': {
@@ -238,7 +239,7 @@ USER_DOCUMENTS_CREATE_RESPONSES[status.HTTP_409_CONFLICT] = {
     }
 }
 
-USER_VERIFY_RESPONSES = {
+USER_VERIFY_RESPONSES: ResponseDict = {
     status.HTTP_404_NOT_FOUND: {
         "description": "User not found.",
         "content": {

@@ -1,9 +1,10 @@
 from typing import Literal, Sequence, Optional
 
-from sqlalchemy import select, func, asc, desc, delete
+from sqlalchemy import select, func, asc, desc, delete, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
+from projects.constants import ProjectStatus
 from projects.models import Project, Step
 from projects.schemas import ProjectCreate
 
@@ -93,3 +94,16 @@ class ProjectRepo:
         query = delete(Project).where(Project.id == project_id)  # type: ignore
         await self._db.execute(query)
         await self._db.commit()
+
+
+class StepRepository:
+    def __init__(self, db: AsyncSession):
+        self._db = db
+
+    async def set_step_status(self, step_id: int, project_id: int, status: ProjectStatus) -> Step:
+        result = await self._db.execute(update(Step).where(
+            Step.project_id == Step.project_id,
+            Step.id == step_id  # type: ignore
+        ).values(status=status))
+        await self._db.commit()
+        return result.scalar_one_or_none()

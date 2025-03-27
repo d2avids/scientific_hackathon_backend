@@ -9,6 +9,7 @@ from projects.constants import ProjectStatus
 
 if TYPE_CHECKING:
     from teams.models import Team
+    from users.models import User
 
 
 class Project(CreatedUpdatedAt, Base):
@@ -61,3 +62,84 @@ class Step(Base):
 
     # relationships
     project: Mapped['Project'] = relationship('Project', back_populates='steps')
+    attempts: Mapped[list['StepAttempt']] = relationship('StepAttempt', back_populates='step')
+    files: Mapped[list['StepAttempt']] = relationship('StepFiles', back_populates='step')
+
+
+class StepAttempt(Base):
+    __tablename__ = 'step_attempts'
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    step_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey('steps.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    started_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),)
+    end_time_at: Mapped[datetime] = mapped_column(TIMESTAMP(timezone=True),)
+
+    # relationships
+    step: Mapped['Step'] = relationship('Step', back_populates='attempts')
+
+
+class StepFile(Base):
+    __tablename__ = 'step_files'
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+
+    step_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey('steps.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
+
+    # relationships
+    step: Mapped['Step'] = relationship('Step', back_populates='files')
+
+
+class StepComment(Base):
+    __tablename__ = 'step_comments'
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    step_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey('steps.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    user_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey('users.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    text: Mapped[str] = mapped_column(String, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        TIMESTAMP(timezone=True),
+        default=datetime.now(UTC),
+        onupdate=datetime.now(UTC)
+    )
+
+    # relationships
+    step: Mapped['Step'] = relationship('Step', back_populates='comments')
+    user: Mapped['User'] = relationship('User', back_populates='comments')
+    files: Mapped[list['StepCommentFile']] = relationship('StepCommentFile', back_populates='comment')
+
+
+class StepCommentFile(Base):
+    __tablename__ = 'step_comments_files'
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    comment_id: Mapped[int] = mapped_column(
+        BigInteger,
+        ForeignKey('step_comments.id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
+
+    # relationships
+    comment: Mapped['StepComment'] = relationship('StepComment', back_populates='files')

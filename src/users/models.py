@@ -7,6 +7,7 @@ from database import Base, CreatedUpdatedAt
 
 if TYPE_CHECKING:
     from teams.models import Team, TeamMember
+    from projects.models import StepComment
 
 
 class User(CreatedUpdatedAt, Base):
@@ -46,6 +47,12 @@ class User(CreatedUpdatedAt, Base):
     )
     documents: Mapped[list['UserDocument']] = relationship(
         'UserDocument',
+        back_populates='user',
+        cascade='all, delete-orphan',
+        passive_deletes=True
+    )
+    comments: Mapped[list['StepComment']] = relationship(
+        'StepComment',
         back_populates='user',
         cascade='all, delete-orphan',
         passive_deletes=True

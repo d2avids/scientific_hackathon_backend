@@ -29,8 +29,9 @@ class ProjectBase(ConfiguredModel):
 
 class ProjectInDB(ProjectBase, IDModel):
     document_path: Annotated[
-        Optional[str],
+        str,
         Field(
+            ...,
             title='Document path',
         )
     ]

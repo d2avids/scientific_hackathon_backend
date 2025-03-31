@@ -69,7 +69,7 @@ class TeamMember(CreatedUpdatedAt, Base):
         index=True,
         unique=True
     )
-    role_name: Mapped[str] = mapped_column(String(250), nullable=False)
+    role_name: Mapped[str] = mapped_column(String(250), nullable=True)
 
     # relationships
     team: Mapped['Team'] = relationship(

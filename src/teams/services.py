@@ -1,26 +1,24 @@
 from math import ceil
-from typing import Optional, Tuple
+from typing import Optional
 
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 
-from exceptions import NotFoundError
+from exceptions import AlreadyExistsError, NotFoundError
 from teams.repositories import TeamMemberRepo, TeamRepo
 from teams.schemas import TeamCreate, TeamInDB, TeamMemberInDB, TeamUpdate, TeamMemberCreateUpdate
+from users.models import User
 from utils import create_field_map_for_model, parse_ordering
 
 
 class TeamService:
     field_map: dict = create_field_map_for_model(TeamInDB)
-    DEFAULT_ROLE_NAME = 'Участник'
 
     def __init__(self, repo: TeamRepo):
         self._repo = repo
 
     async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDB:
         try:
-            team_data = team.model_dump()
-            team = TeamCreate(**team_data)
             team_db = await self._repo.create(team_data=team, mentor_id=mentor_id)
             team_model = TeamInDB.model_validate(team_db)
             team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team_db.team_members]
@@ -28,7 +26,7 @@ class TeamService:
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='Team with this name already exists or the mentor ID is missing from the response'
+                detail='Integrity error. Check the data for correctness.'
             )
 
     async def update_team(
@@ -36,32 +34,38 @@ class TeamService:
             team_id: int,
             update_data: TeamUpdate,
     ) -> TeamUpdate:
+        team_members = None
         try:
-            if 'project_id' in update_data.model_fields_set and update_data.project_id is not None:
-                update_data.project_id = int(update_data.project_id)
-            team_members = update_data.model_dump(exclude_unset=True).pop('team_members', None)
-            if len(team_members) > 10:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='The maximum number of team members is 10.'
-                )
-            for member in team_members:
-                if member.get('role_name') and member.get('role_name').strip().lower().startswith('капитан'):
-                    team_with_captain = await self._repo.get_by_role_name('капитан', team_id)
-                    if team_with_captain:
-                        for team_member in team_with_captain.team_members:
-                            if team_member.role_name.strip().lower().startswith('капитан'):
-                                team_member.role_name = self.DEFAULT_ROLE_NAME
-
+            if update_data.team_members:
+                update_dict = update_data.model_dump(exclude_unset=True)
+                team_members = update_dict.pop('team_members')
+                update_data = TeamUpdate.model_validate(update_dict)
+                if len(team_members) > 10:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='The maximum number of team members is 10.'
+                    )
             team = await self._repo.update_team(team_id, update_data.model_dump(exclude_unset=True))
             team_model = TeamUpdate.model_validate(team)
             if team_members:
-                team_model.team_members = [TeamMemberCreateUpdate.model_validate(member) for member in team_members]
+                team_members = [TeamMemberCreateUpdate.model_validate(member) for member in team_members]
+                await self._repo.update_team_members(team_id, [member.model_dump() for member in team_members])
+                team_model.team_members = team_members
             return team_model
         except NotFoundError:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail='Team not found'
+                detail='Team or team members not found'
+            )
+        except AlreadyExistsError:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail='Team member is already in a team'
+            )
+        except IntegrityError:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Integrity error. Check the data for correctness.'
             )
 
     async def delete_team(self, team_id: int) -> None:
@@ -92,7 +96,7 @@ class TeamService:
             mentor_id: Optional[int] = None,
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[list[TeamInDB], int, int]:
+    ) -> tuple[list[TeamInDB], int, int]:
         order_column, order_direction = parse_ordering(ordering, field_map=self.field_map)
         if order_column not in self.field_map:
             raise HTTPException(
@@ -125,20 +129,30 @@ class TeamMemberService:
             team_id: int,
             members: list[TeamMemberCreateUpdate],
     ) -> list[TeamMemberInDB]:
+        check_team = await self._repo.get_by_team(team_id)
+        if not check_team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team not found'
+            )
         if len(members) > 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail='The maximum number of team members is 10.'
             )
-        for member in members:
-            if member.role_name and member.role_name.strip().lower().startswith('капитан'):
-                check_captain_name = await self._repo.get_by_name('капитан')
-                if check_captain_name:
-                    raise HTTPException(
-                        status_code=status.HTTP_400_BAD_REQUEST,
-                        detail='Captain role name is reserved for the team. '
-                        'To change the captain, use the update method after creating the instance.'
-                    )
+
+        has_captain_in_entry_data = any(
+            member.role_name and member.role_name.strip().lower().startswith('капитан')
+            for member in members
+        )
+        if has_captain_in_entry_data:
+            check_captain_name = await self._repo.get_team_by_member_rolename('капитан', team_id)
+            if check_captain_name:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail='Captain role name is reserved for the team. '
+                    'To change the captain, use the update method after creating the instance.'
+                )
         try:
             member_db = await self._repo.create_several_team_members(
                 team_members_data=members,
@@ -147,15 +161,49 @@ class TeamMemberService:
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='One or more members already exist.'
+                detail='Integrity error. Check the data for correctness.'
             )
         return [TeamMemberInDB.model_validate(member) for member in member_db]
 
-    async def delete_team_member(self, team_id: int, team_member_id: int) -> None:
-        team_member = await self._repo.get_by_id(team_member_id)
+    async def change_team_member_role(
+            self,
+            team_id: int,
+            team_member_id: int,
+            role_name: str,
+            current_user: User
+    ) -> TeamMemberInDB:
+        team_member = await self._repo.get_team_member_by_id(team_member_id)
         if not team_member:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Team member instance not found'
             )
-        await self._repo.delete_team_member(team_member_id)
+        if team_member.team_id != team_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team member not found'
+            )
+        if (
+            (role_name.lower().startswith('капитан') or team_member.participant_id == current_user.participant.id)
+            and not current_user.is_mentor
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='Only mentors can change the captain role'
+            )
+        await self._repo.update_team_member(team_id, team_member_id, {'role_name': role_name})
+        return TeamMemberInDB.model_validate(team_member)
+
+    async def delete_team_member(self, team_id: int, team_member_id: int) -> None:
+        team_member = await self._repo.get_team_member_by_id(team_member_id)
+        if not team_member:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team member instance not found'
+            )
+        if team_member.team_id != team_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team member not found'
+            )
+        await self._repo.delete_team_member(team_member_id, team_id)

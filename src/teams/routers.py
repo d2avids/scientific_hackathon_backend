@@ -28,6 +28,22 @@ async def create_team(
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Create a team. Only mentors can create teams.
+
+    ### Request
+    ```json
+    {
+    "name": "string", # required
+    "teamMembers": [ # optional
+        {
+        "participantId": 0, # required if teamMembers is provided
+        "roleName": "string" # optional
+        }
+    ]
+    }
+    ```
+    """
     return await service.create_team(team, current_user.mentor.id)
 
 
@@ -47,6 +63,12 @@ async def update_team(
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Update a team. Only mentors can update teams.
+
+    All fields are optional.
+    This endpoint can be used to appoint a team captain.
+    """
     return await service.update_team(team_id, update_data)
 
 
@@ -64,6 +86,9 @@ async def delete_team(
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Delete a team. Only mentors can delete teams.
+    """
     await service.delete_team(team_id)
 
 
@@ -81,6 +106,10 @@ async def get_team_by_id(
     service: TeamService = Depends(get_team_service),
     current_user: User = Depends(ensure_team_member_or_mentor)
 ):
+    """
+    ## Get a team by ID.
+    Allowed for mentors and team members.
+    """
     return await service.get_team_by_id(team_id)
 
 
@@ -110,6 +139,10 @@ async def get_all_teams(
         service: TeamService = Depends(get_team_service),
         current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Get all teams.
+    Allowed for mentors only.
+    """
     teams, total, total_pages = await service.get_all_teams(
         search=search,
         ordering=ordering,
@@ -142,6 +175,19 @@ async def add_team_members(
     service: TeamMemberService = Depends(get_team_member_service),
     current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Add team members to a team.
+    Allowed for mentors only.
+
+    ### Request
+    ```json
+    [
+        {
+        "participantId": 0, # required
+        "roleName": "string" # optional
+        }
+    ]
+    """
     return await service.create_several_team_members(team_id, members)
 
 
@@ -161,6 +207,10 @@ async def change_team_member_role(
     service: TeamMemberService = Depends(get_team_member_service),
     current_user: User = Depends(ensure_captain_or_mentor)
 ):
+    """
+    ## Change a team member's role.
+    Allowed for captains and mentors. This endpoint can be used by mentors to appoint a team captain.
+    """
     return await service.change_team_member_role(team_id, team_member_id, role_name, current_user)
 
 
@@ -179,4 +229,8 @@ async def delete_team_member(
     service: TeamMemberService = Depends(get_team_member_service),
     current_user: User = Depends(require_mentor)
 ):
+    """
+    ## Delete a team member.
+    Allowed for mentors only.
+    """
     await service.delete_team_member(team_id, team_member_id)

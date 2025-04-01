@@ -25,16 +25,16 @@ class TeamMemberBase(ConfiguredModel):
         )
     ]
 
+
+class TeamMemberCreateUpdate(TeamMemberBase):
+    """Schema for creating a team member."""
+
     @field_validator('role_name')
     @classmethod
     def validate_role_format(cls, v):
         if v and not v.replace(' ', '').isalpha():
             raise ValueError('Role name can only contain letters and spaces')
         return v
-
-
-class TeamMemberCreateUpdate(TeamMemberBase):
-    """Schema for creating a team member."""
 
 
 class TeamMemberInDB(CreatedUpdatedAt, TeamMemberBase, IDModel):
@@ -54,12 +54,13 @@ class TeamBase(ConfiguredModel):
 
     @model_validator(mode='after')
     def validate_single_captain(self):
-        captain_count = sum(
-            1 for member in self.team_members
-            if member.role_name and 'капитан' in member.role_name.lower()
-        )
-        if captain_count > 1:
-            raise ValueError('Team can have only one captain')
+        if self.team_members:
+            captain_count = sum(
+                1 for member in self.team_members
+                if member.role_name and 'капитан' in member.role_name.lower()
+            )
+            if captain_count > 1:
+                raise ValueError('Team can have only one captain')
         return self
 
 
@@ -113,7 +114,7 @@ class TeamUpdate(TeamBase):
     ]
 
 
-class TeamInDB(CreatedUpdatedAt, TeamBase, TeamMentorID, IDModel):
+class TeamInDB(TeamMentorID, CreatedUpdatedAt, ConfiguredModel, IDModel):
     """Schema for a team to be returned."""
     name: Annotated[
         str,

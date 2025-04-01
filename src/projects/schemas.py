@@ -2,7 +2,8 @@ from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import urljoin
 
-from pydantic import Field, field_serializer
+from pydantic import Field, field_serializer, model_validator
+
 from schemas import ConfiguredModel, IDModel
 from settings import settings
 
@@ -51,7 +52,6 @@ class ProjectInDB(ProjectBase, IDModel):
     updated_at: Annotated[
         Optional[datetime],
         Field(
-            ...,
             title='Updated at',
         )
     ]
@@ -78,6 +78,36 @@ class ProjectCreate(ProjectBase):
     ...
 
 
+class ProjectUpdate(ConfiguredModel):
+    name: Annotated[
+        Optional[str],
+        Field(
+            title='Project name',
+            max_length=50,
+        )
+    ]
+    description: Annotated[
+        Optional[str],
+        Field(
+            title='Project description',
+            max_length=500,
+        )
+    ]
+
+    @model_validator(mode="before")
+    @classmethod
+    def check_explicit_null_fields(cls, values):
+        fields_cant_be_none_if_present = [
+            'name',
+            'description',
+        ]
+        for field_name in fields_cant_be_none_if_present:
+            if field_name in values and not values[field_name]:
+                raise ValueError(f'{field_name} cannot be null if explicitly passed')
+
+        return values
+
+
 class StepInDB(ConfiguredModel, IDModel):
     project_id: Annotated[
         int,
@@ -96,7 +126,6 @@ class StepInDB(ConfiguredModel, IDModel):
     text: Annotated[
         Optional[str],
         Field(
-            ...,
             title='Team\'s answer on this step',
         )
     ]
@@ -124,7 +153,6 @@ class StepInDB(ConfiguredModel, IDModel):
     updated_at: Annotated[
         Optional[datetime],
         Field(
-            ...,
             title='Updated at',
         )
     ]

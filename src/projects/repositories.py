@@ -1,10 +1,11 @@
-from typing import Literal, Tuple, Sequence, Optional
+from typing import Literal, Sequence, Optional
 
-from projects.models import Project, Step
-from projects.schemas import ProjectCreate
 from sqlalchemy import select, func, asc, desc, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
+
+from projects.models import Project, Step
+from projects.schemas import ProjectCreate
 
 
 class ProjectRepo:
@@ -12,7 +13,7 @@ class ProjectRepo:
         self._db = db
 
     async def get_by_id(self, project_id: int, join_steps: bool = False) -> Optional[Project]:
-        base_query = select(Project).where(Project.id == project_id)
+        base_query = select(Project).where(Project.id == project_id)  # type: ignore
         if join_steps:
             base_query = base_query.options(
                 joinedload(Project.steps)
@@ -23,12 +24,12 @@ class ProjectRepo:
     async def get_all(
             self,
             *,
-            search: str = None,
-            order_column: str = 'id',
+            search: Optional[str] = None,
+            order_column: Optional[str] = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[Sequence[Project], int]:
+    ) -> tuple[Sequence[Project], int]:
         base_query = select(Project)
         count_query = select(func.count(Project.id))
 
@@ -59,21 +60,28 @@ class ProjectRepo:
         return projects_list, total
 
     async def create(self, project_create: ProjectCreate) -> Project:
-        async with self._db.begin():
-            project = Project(**project_create.model_dump())
-            self._db.add(project)
-            await self._db.flush()
-            await self._db.refresh(project)
-            steps_to_create: list[Step] = []
-            for step_number in range(1, 16):
-                steps_to_create.append(
-                    Step(
-                        project_id=project.id,
-                        step_number=step_number,
-                    )
+        project = Project(**project_create.model_dump())
+        self._db.add(project)
+        await self._db.flush()
+        await self._db.refresh(project)
+        steps_to_create: list[Step] = []
+        for step_number in range(1, 16):
+            steps_to_create.append(
+                Step(
+                    project_id=project.id,
+                    step_number=step_number,
                 )
-            self._db.add_all(steps_to_create)
-            await self._db.flush()
+            )
+        self._db.add_all(steps_to_create)
+        await self._db.flush()
+        return project
+
+    async def update(self, update_data: dict, project: Project):
+        for key, val in update_data.items():
+            if hasattr(project, key):
+                setattr(project, key, val)
+        await self._db.commit()
+        await self._db.refresh(project)
         return project
 
     async def set_document_path(self, project: Project, document_path: str) -> None:

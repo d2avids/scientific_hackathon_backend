@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from fastapi import status
 
-ResponseDict = Dict[int | str, Dict[str, Any]]
+ResponseDict = Dict[int, Dict[str, Any]]
 
 AUTHENTICATION_RESPONSES: ResponseDict = {
     status.HTTP_401_UNAUTHORIZED: {
@@ -83,7 +83,7 @@ FILE_UPLOAD_RELATED_RESPONSES: ResponseDict = {
     }
 }
 
-NOT_FOUND_RESPONSE = {
+NOT_FOUND_RESPONSE: ResponseDict = {
     status.HTTP_404_NOT_FOUND: {
         'description': 'Not found.',
     }

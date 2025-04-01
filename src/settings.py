@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     DEBUG: bool = os.getenv('DEBUG').lower() == 'true'
 
     PROJECT_NAME: str
-    MEDIA_DIR: Path = os.path.join(BASE_DIR, os.getenv('media', 'media'))
+    MEDIA_DIR: str = os.getenv('media', 'media')
     SERVER_URL: str = 'http://127.0.0.1:8000/'
 
     DEFAULT_ELEMENTS_PER_PAGE: int = 25

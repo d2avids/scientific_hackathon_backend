@@ -143,8 +143,8 @@ class TeamRepo:
             self,
             team_id: int,
             update_data: dict,
+            team_members: Optional[list[dict]] = None
     ) -> Team:
-        team_members = update_data.pop("team_members", None)
         team = await self.get_by_id(team_id)
         if not team:
             raise NotFoundError("Team not found")
@@ -153,7 +153,8 @@ class TeamRepo:
         self._db.add(team)
         await self._db.flush()
         if team_members is not None:
-            await self.update_team_members(team_id, team_members)
+            members_data = [member.model_dump() if hasattr(member, 'model_dump') else member for member in team_members]
+            await self.update_team_members(team_id, members_data)
         await self._db.commit()
         await self._db.refresh(team)
         return team
@@ -175,6 +176,10 @@ class TeamRepo:
                     team_member_id=member.id,
                     update_data=member_data
                 )
+
+    async def delete_team_project(self, team_id: int) -> None:
+        await self._db.execute(update(Team).where(Team.id == team_id).values(project_id=None))
+        await self._db.commit()
 
 
 class TeamMemberRepo:

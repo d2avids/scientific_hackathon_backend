@@ -1,11 +1,11 @@
-from typing import Literal, Optional, Sequence, Tuple
+from typing import Literal, Optional, Sequence
 
 from sqlalchemy import (ColumnElement, Select, asc, delete, desc, func, or_,
-                        select)
+                        select, update, and_)
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from exceptions import NotFoundError
+from exceptions import NotFoundError, AlreadyExistsError
 from teams.models import Team, TeamMember
 from teams.schemas import TeamCreate, TeamMemberCreateUpdate
 
@@ -42,7 +42,7 @@ class TeamRepo:
         order_direction: Literal['ASC', 'DESC'] = 'ASC',
         offset: int = 0,
         limit: int = 10,
-    ) -> Tuple[Sequence[Team], int]:
+    ) -> tuple[Sequence[Team], int]:
         base_query = select(Team)
 
         filters: list[ColumnElement[bool]] = []
@@ -148,6 +148,7 @@ class TeamRepo:
             )
             await member_repo.create_several_team_members(members_sequence, team.id)
         await self._db.commit()
+        await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
 
     async def update_team(
@@ -155,19 +156,19 @@ class TeamRepo:
             team_id: int,
             update_data: dict,
     ) -> Team:
-        team_members = update_data.pop("team_members", None)
+        team_members = update_data.pop('team_members', None)
         team = await self.get_by_id(team_id)
         if not team:
-            raise NotFoundError("Team not found")
+            raise NotFoundError('Team not found')
 
         for key, value in update_data.items():
             setattr(team, key, value)
         self._db.add(team)
         await self._db.flush()
-        await self._db.refresh(team)
         if team_members is not None:
-            await self._update_team_members(team_members)
+            await self.update_team_members(team_id, team_members)
         await self._db.commit()
+        await self._db.refresh(team)
         return team
 
     async def delete_team(
@@ -177,13 +178,21 @@ class TeamRepo:
         await self._db.execute(delete(Team).where(Team.id == team_id))
         await self._db.commit()
 
-    async def _update_team_members(self, members: list[dict]):
+    async def update_team_members(self, team_id: int, members_data: list[dict]):
         member_repo = TeamMemberRepo(self._db)
-        for member in members:
-            await member_repo.update_team_member(member['participant_id'], member)
+        for member_data in members_data:
+            member = await member_repo.get_team_member_by_participant_id(member_data['participant_id'])
+            if member:
+                await member_repo.update_team_member(
+                    team_id=team_id,
+                    team_member_id=member.id,
+                    update_data=member_data
+                )
 
 
 class TeamMemberRepo:
+    DEFAULT_ROLE_NAME = 'Участник'
+
     def __init__(self, db: AsyncSession):
         self._db = db
 
@@ -210,7 +219,7 @@ class TeamMemberRepo:
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-    ) -> Tuple[Sequence[TeamMember], int]:
+    ) -> tuple[Sequence[TeamMember], int]:
         base_query = select(TeamMember)
 
         filters: list[ColumnElement[bool]] = []
@@ -243,7 +252,7 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalars().all(), total
 
-    async def get_by_id(
+    async def get_team_member_by_id(
             self,
             team_member_id: int,
             *,
@@ -255,9 +264,9 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
-    async def get_by_participant_id(
-        self,
-        participant_id: int,
+    async def get_team_member_by_participant_id(
+            self,
+            participant_id: int,
     ) -> Optional[TeamMember]:
         base_query = select(TeamMember).where(TeamMember.participant_id == participant_id)
         result = await self._db.execute(base_query)
@@ -275,25 +284,13 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalars().all()
 
-    async def get_by_participant(
-        self,
-        participant_id: int,
-        *,
-        team_join: bool = False,
-        participant_join: bool = False,
-    ) -> Sequence[TeamMember]:
-        base_query = select(TeamMember).where(TeamMember.participant_id == participant_id)
-        base_query = self._add_team_member_joins(base_query, team_join, participant_join)
-        result = await self._db.execute(base_query)
-        return result.scalars().all()
-
     async def get_by_user_id(
         self,
         user_id: int,
     ) -> Optional[TeamMember]:
-        base_query = select(TeamMember).where(TeamMember.participant_id == user_id)
+        base_query = select(TeamMember).join(TeamMember.participant).where(TeamMember.participant.has(user_id=user_id))
         result = await self._db.execute(base_query)
-        return result.scalar_one_or_none()
+        return result.scalars().unique().one_or_none()
 
     async def create_several_team_members(
             self,
@@ -315,13 +312,18 @@ class TeamMemberRepo:
 
     async def update_team_member(
             self,
+            team_id: int,
             team_member_id: int,
             update_data: dict,
     ) -> TeamMember:
-        team_member = await self.get_by_participant_id(team_member_id)
+        team_member = await self.get_team_member_by_id(team_member_id)
         if not team_member:
             raise NotFoundError('Team member not found')
+        if team_member.team_id and team_member.team_id != team_id:
+            raise AlreadyExistsError('Team member is already on another team')
         for key, value in update_data.items():
+            if key == 'role_name' and value.lower().startswith('капитан'):
+                await self.update_captain_role(team_id, self.DEFAULT_ROLE_NAME)
             setattr(team_member, key, value)
         self._db.add(team_member)
         await self._db.commit()
@@ -331,9 +333,36 @@ class TeamMemberRepo:
     async def delete_team_member(
             self,
             team_member_id: int,
+            team_id: int,
     ) -> None:
-        await self._db.execute(delete(TeamMember).where(TeamMember.id == team_member_id))
+        await self._db.execute(delete(TeamMember).where(TeamMember.id == team_member_id, TeamMember.team_id == team_id))
         await self._db.commit()
+
+    async def get_team_by_member_rolename(
+        self,
+        name: str,
+        team_id: int,
+    ) -> Optional[TeamMember]:
+        base_query = select(TeamMember).where(TeamMember.role_name.ilike(f'%{name}%'), TeamMember.team_id == team_id)
+        result = await self._db.execute(base_query)
+        return result.scalars().unique().one_or_none()
+
+    async def update_captain_role(self, team_id: int, default_role: str) -> None:
+        query = (
+            update(TeamMember)
+            .where(
+                and_(
+                    TeamMember.team_id == team_id,
+                    func.lower(TeamMember.role_name) == 'капитан'
+                )
+            )
+            .values(role_name=default_role)
+        )
+        result = await self._db.execute(query)
+        if result.rowcount == 0:
+            pass
+        else:
+            await self._db.commit()
 
     async def get_by_name(
         self,

@@ -4,12 +4,6 @@ from fastapi import status
 
 ResponseDict = Dict[int | str, Dict[str, Any]]
 
-TEAM_NOT_FOUND_RESPONSES: ResponseDict = {
-    status.HTTP_404_NOT_FOUND: {
-        'description': 'Team not found'
-    }
-}
-
 TEAM_CREATE_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
         'description': 'Team with this name already exists',

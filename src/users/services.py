@@ -119,7 +119,7 @@ class UserService:
         else:
             update_data: dict = {}
 
-        if photo == '':
+        if photo == '' or photo:
             if current_user.photo_path:
                 old_user_photo_full_path = await FileService.construct_full_path_from_relative_path(
                     current_user.photo_path

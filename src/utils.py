@@ -168,7 +168,7 @@ class FileService:
             file: UploadFile,
             path_segments: list[str],
             allowed_mime_types: list[str],
-            size_limit_kilobytes: int,
+            size_limit_megabytes: int,
     ) -> FileUploadResult:
         """
         Helper function to validate and upload file in the filesystem.
@@ -184,7 +184,7 @@ class FileService:
         :param file: UploadFile to be uploaded
         :param allowed_mime_types: list of allowed MIME types. E.g., ['image/jpeg', 'image/png', 'image/gif']
                                    (https://developer.mozilla.org/en-US/docs/Web/HTTP/MIME_types/Common_types)
-        :param size_limit_kilobytes: int
+        :param size_limit_megabytes: int
         :return: FileUploadResult obj.
         """
         file_name = file.filename
@@ -197,10 +197,10 @@ class FileService:
                 detail=f'Invalid file format. Allowed formats: {", ".join(allowed_mime_types)}'
             )
         file_size = len(content)
-        if file_size > size_limit_kilobytes * 1024:
+        if file_size > size_limit_megabytes * 1024 * 1024:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f'File size exceeds the limit of {size_limit_kilobytes} KB'
+                detail=f'File size exceeds the limit of {size_limit_megabytes} MB'
             )
         await file.seek(0)
         media_dir = BASE_DIR / settings.MEDIA_DIR

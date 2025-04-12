@@ -5,6 +5,9 @@ from typing import Optional
 from auth.config import PasswordEncryption
 from fastapi import status, HTTPException, UploadFile, BackgroundTasks
 from pydantic_core import ValidationError
+
+from constants import REJECTED_REGISTRATION_EMAIL_SUBJECT, REJECTED_REGISTRATION_EMAIL_MESSAGE, \
+    SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE, SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT
 from settings import settings
 from sqlalchemy.exc import IntegrityError
 from users.models import User, UserDocument
@@ -199,10 +202,8 @@ class UserService:
         background_tasks.add_task(
             send_mail,
             to_email=user.email,
-            subject='Верификация на сайте "Научный Хакатон" успешно пройдена.',
-            message=f'Добрый день, {user.first_name}!\n\n'
-                    f'Ваш аккаунт на сайте {settings.SERVER_URL} был верифицирован администратором.\n\n '
-                    f'С уважением, команда сайта Научный Хакатон.'
+            subject=SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT,
+            message=SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE
         )  # type: ignore
 
     async def decline_registration(self, user_id: int, background_tasks: BackgroundTasks) -> None:
@@ -221,10 +222,8 @@ class UserService:
         background_tasks.add_task(
             send_mail,
             to_email=user.email,
-            subject='Верификация на сайте "Научный Хакатон" успешно пройдена.',
-            message=f'Добрый день, {user.first_name}!\n\n'
-                    f'Ваш аккаунт на сайте {settings.SERVER_URL} был верифицирован администратором.\n\n '
-                    f'С уважением, команда сайта Научный Хакатон.'
+            subject=REJECTED_REGISTRATION_EMAIL_SUBJECT,
+            message=REJECTED_REGISTRATION_EMAIL_MESSAGE
         )  # type: ignore
 
     async def delete(self, user_id: int) -> None:

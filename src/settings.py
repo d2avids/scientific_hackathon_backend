@@ -26,6 +26,7 @@ class AuthSettings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 5
     REFRESH_TOKEN_EXPIRE_MINUTES: int = 120
 
+    FRONTEND_LOGIN_URL: str = 'http://127.0.0.1:8000/login'
     FRONTEND_RESET_PASSWORD_CALLBACK_URL: str = 'http://127.0.0.1:8000/reset'
     RESET_PASSWORD_CODE_TTL: int = 3600
 
@@ -36,6 +37,10 @@ class Settings(BaseSettings):
     PROJECT_NAME: str
     MEDIA_DIR: str = os.getenv('media', 'media')
     SERVER_URL: str = 'http://127.0.0.1:8000/'
+
+    CONTACT_EMAIL: str
+    CONTACT_PHONE: str
+    SITE_NAME: str
 
     DEFAULT_ELEMENTS_PER_PAGE: int = 25
     MAX_ELEMENTS_PER_PAGE: int = 100

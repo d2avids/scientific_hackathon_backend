@@ -32,5 +32,5 @@ services:
       - "127.0.0.1:${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
       - ./logs:/app/logs
-      - ./media:/app/media/
+      - /srv/scientific_hackathon_backend/media:/app/media
     logging: *logging

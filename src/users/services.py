@@ -124,6 +124,8 @@ class UserService:
                 await FileService.delete_file_from_fs(old_user_photo_full_path)
                 update_data['photo_path'] = None
 
+        file_full_path = ''
+
         if photo:
             result = await FileService.upload_file(
                 file=photo,
@@ -132,34 +134,52 @@ class UserService:
                 size_limit_megabytes=10,
             )
             update_data['photo_path'] = result.relative_path
+            file_full_path = result.full_path
 
-        main_fields = {}
-        participant_data = None
-        mentor_data = None
+        try:
+            main_fields = {}
+            participant_data = None
+            mentor_data = None
 
-        if 'participant' in update_data:
-            participant_data = update_data.pop('participant')
-        if 'mentor' in update_data:
-            mentor_data = update_data.pop('mentor')
+            if 'participant' in update_data:
+                participant_data = update_data.pop('participant')
+            if 'mentor' in update_data:
+                mentor_data = update_data.pop('mentor')
 
-        for key in (list(UserUpdate.__fields__.keys()) + ['photo_path']):  # type: ignore
-            if key in update_data:
-                main_fields[key] = update_data[key]
+            for key in (list(UserUpdate.__fields__.keys()) + ['photo_path']):  # type: ignore
+                if key in update_data:
+                    main_fields[key] = update_data[key]
 
-        if main_fields:
-            current_user = await self._repo.update_user(user_id, main_fields)
-
-        if participant_data and not current_user.is_mentor:
-            try:
-                current_user.participant = await self._repo.update_participant(user_id, participant_data)
-            except IntegrityError:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail='Region does not exist.'
+            if main_fields:
+                current_user = await self._repo.update_user(
+                    user_id=user_id,
+                    update_data=main_fields,
+                    commit=False
                 )
 
-        if mentor_data and current_user.is_mentor:
-            current_user.mentor = await self._repo.update_mentor(user_id, mentor_data)
+            if participant_data and not current_user.is_mentor:
+                try:
+                    current_user.participant = await self._repo.update_participant(
+                        user_id=user_id,
+                        update_data=participant_data,
+                        commit=True
+                    )
+                except IntegrityError:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail='Region does not exist.'
+                    )
+
+            if mentor_data and current_user.is_mentor:
+                current_user.mentor = await self._repo.update_mentor(
+                    user_id=user_id,
+                    update_data=mentor_data,
+                    commit=True,
+                )
+        except Exception as e:
+            if file_full_path:
+                await FileService.delete_file_from_fs(file_full_path)
+            raise e
 
         return UserInDB.model_validate(current_user)
 
@@ -269,15 +289,18 @@ class UserDocumentService:
             ],
             size_limit_megabytes=10,
         )
-
-        document = await self._repo.create(
-            user_id=user_id,
-            path=result.relative_path,
-            name=result.name,
-            size=result.size_bytes,
-            mimetype=result.mime_type,
-        )
-        return UserDocumentInDB.model_validate(document)
+        try:
+            document = await self._repo.create(
+                user_id=user_id,
+                path=result.relative_path,
+                name=result.name,
+                size=result.size_bytes,
+                mimetype=result.mime_type,
+            )
+            return UserDocumentInDB.model_validate(document)
+        except Exception as e:
+            await FileService.delete_file_from_fs(result.full_path)
+            raise e
 
     async def delete(self, document_id: int, document: UserDocument) -> None:
         await self._repo.delete(document_id)

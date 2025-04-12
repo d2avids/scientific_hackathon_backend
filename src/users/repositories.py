@@ -90,6 +90,7 @@ class UserRepo:
         mentor_data = mentor_data.model_dump()
         mentor_data.update({'user_id': user.id})
         mentor = await self._create_mentor(mentor_data)
+        await self._db.commit()
         return user, mentor
 
     async def create_user_and_participant(
@@ -101,6 +102,7 @@ class UserRepo:
         participant_data = participant_data.model_dump()
         participant_data.update(({'user_id': user.id}))
         participant = await self._create_participant(participant_data)
+        await self._db.commit()
         return user, participant
 
     async def _create_user(self, data: UserCreate) -> User:
@@ -127,18 +129,36 @@ class UserRepo:
         await self._db.refresh(mentor)
         return mentor
 
-    async def update_user(self, user_id: int, update_data: dict) -> User:
+    async def update_user(
+            self,
+            *,
+            user_id: int,
+            update_data: dict,
+            commit: bool = False
+    ) -> User:
         user = await self.get_by_id(user_id)
         if not user:
             raise NotFoundError('User not found')
+
         for key, value in update_data.items():
             if hasattr(user, key):
                 setattr(user, key, value)
-        await self._db.commit()
+
+        await self._db.flush()
+
+        if commit:
+            await self._db.commit()
+
         await self._db.refresh(user)
         return user
 
-    async def update_participant(self, user_id: int, update_data: dict) -> Participant:
+    async def update_participant(
+            self,
+            *,
+            user_id: int,
+            update_data: dict,
+            commit: bool = True
+    ) -> Participant:
         result = await self._db.execute(
             select(Participant).where(Participant.user_id == user_id)  # type: ignore
         )
@@ -148,11 +168,20 @@ class UserRepo:
         for key, value in update_data.items():
             if hasattr(participant, key):
                 setattr(participant, key, value)
-        await self._db.commit()
+
+        await self._db.flush()
+        if commit:
+            await self._db.commit()
+
         await self._db.refresh(participant)
         return participant
 
-    async def update_mentor(self, user_id: int, update_data: dict) -> Mentor:
+    async def update_mentor(
+            self,
+            user_id: int,
+            update_data: dict,
+            commit: bool = True
+    ) -> Mentor:
         result = await self._db.execute(
             select(Mentor).where(Mentor.user_id == user_id)  # type: ignore
         )
@@ -162,7 +191,11 @@ class UserRepo:
         for key, value in update_data.items():
             if hasattr(mentor, key):
                 setattr(mentor, key, value)
-        await self._db.commit()
+        await self._db.flush()
+
+        if commit:
+            await self._db.commit()
+
         await self._db.refresh(mentor)
         return mentor
 

@@ -1,3 +1,4 @@
+import datetime
 import json
 from math import ceil
 from typing import Sequence, Optional
@@ -5,9 +6,11 @@ from typing import Sequence, Optional
 from fastapi import UploadFile, HTTPException, status
 from pydantic_core import ValidationError
 
-from projects.models import Project
-from projects.repositories import ProjectRepo
+from projects.constants import ProjectStatus, PROJECT_FILES_MIME_TYPES
+from projects.models import Project, Step, StepAttempt, StepComment, StepFile
+from projects.repositories import ProjectRepo, StepRepo
 from projects.schemas import ProjectInDB, ProjectCreate, ProjectUpdate
+from users.models import User
 from utils import create_field_map_for_model, parse_ordering, FileService, clean_errors, FileUploadResult
 
 
@@ -64,7 +67,12 @@ class ProjectService:
 
         return result, total, total_pages
 
-    async def create(self, project_create: str, document: UploadFile) -> Project:
+    async def create(
+            self,
+            *,
+            project_create: str,
+            document: UploadFile
+    ) -> Project:
         try:
             data_dict = json.loads(project_create)
         except json.JSONDecodeError:
@@ -86,15 +94,22 @@ class ProjectService:
                 detail='Data string must be a valid JSON.'
             )
 
-        project = await self._repo.create(create_model)
-
-        result = await self._upload_document(document, str(project.id))
-        await self._repo.set_document_path(project, result.relative_path)
+        project = await self._repo.create(create_model, commit=False)
+        file_result = None
+        try:
+            file_result = await self._upload_document(document, str(project.id))
+            await self._repo.set_document_path(project, file_result.relative_path)
+        except Exception as e:
+            if file_result:
+                full_path = await FileService.construct_full_path_from_relative_path(file_result.relative_path)
+                await FileService.delete_file_from_fs(full_path)
+            raise e
 
         return project
 
     async def update(
             self,
+            *,
             project_id: int,
             update_data: str,
             document: Optional[UploadFile]
@@ -127,10 +142,20 @@ class ProjectService:
             update_dict = {}
 
         if document:
-            result = await self._upload_document(document, str(project.id))
-            update_dict['document_path'] = result.relative_path
+            file_result = None
+            try:
+                file_result = await self._upload_document(document, str(project.id))
+                update_dict['document_path'] = file_result.relative_path
+                project = await self._repo.update(update_dict, project)
+            except Exception as e:
+                if file_result:
+                    full_path = await FileService.construct_full_path_from_relative_path(file_result.relative_path)
+                    await FileService.delete_file_from_fs(full_path)
+                raise e
+        else:
+            project = await self._repo.update(update_dict, project)
 
-        return await self._repo.update(update_dict, project)
+        return project
 
     async def delete(self, project_id: int) -> None:
         project = await self._repo.get_by_id(project_id, join_steps=False)
@@ -141,5 +166,435 @@ class ProjectService:
             )
 
         await self._repo.delete(project_id)
-        document_path = await FileService.construct_full_path_from_relative_path(project.document_path)
-        await FileService.delete_file_from_fs(document_path)
+        await FileService.delete_all_files_in_directory(['projects', str(project_id)])
+
+
+class StepService:
+    def __init__(self, repo: StepRepo):
+        self._repo = repo
+
+    @staticmethod
+    def _is_step_time_exceeded(step_attempt: StepAttempt) -> bool:
+        """Check if the step time has exceeded."""
+        return datetime.datetime.now(tz=datetime.timezone.utc) > step_attempt.end_time_at
+
+    @staticmethod
+    async def _upload_files(
+            files: list[UploadFile],
+            project_id: int,
+            step_num: int,
+            file_limit: int = 10,
+            size_limit_mb: int = 100,
+            comments: bool = False
+    ) -> list:
+        """Upload files with validation."""
+        if len(files) > file_limit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f'Too many files to send. Maximum is {file_limit}'
+            )
+
+        files_to_create = []
+        path_segments = ['projects', str(project_id), 'steps', str(step_num)]
+
+        if comments:
+            path_segments.append('comments')
+
+        try:
+            for file in files:
+                result = await FileService.upload_file(
+                    file=file,
+                    path_segments=path_segments,
+                    allowed_mime_types=PROJECT_FILES_MIME_TYPES,
+                    size_limit_megabytes=size_limit_mb
+                )
+                files_to_create.append(result)
+            return files_to_create
+        except Exception as e:
+            for file_to_create in files_to_create:
+                await FileService.delete_file_from_fs(file_to_create.full_path)
+            raise e
+
+    @staticmethod
+    async def _remove_step_files_from_fs(files: list[StepFile]) -> None:
+        for file in files:
+            full_path = await FileService.construct_full_path_from_relative_path(file.file_path)
+            await FileService.delete_file_from_fs(full_path)
+
+    async def _validate_previous_step_completed(self, project_id: int, step_num: int) -> None:
+        """Validate that the previous step is completed."""
+        if step_num <= 1:
+            return
+
+        previous_step = await self._repo.get_step(project_id=project_id, step_num=step_num - 1)
+        if not previous_step:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Previous step not found'
+            )
+
+        if previous_step.status != ProjectStatus.ACCEPTED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Cannot start the new step until the previous step is finished'
+            )
+
+    async def get_step_or_404(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            join_files: bool = False,
+            join_attempts: bool = False,
+            join_comments: bool = False,
+            join_project: bool = False,
+            user: Optional[User] = None,
+    ) -> Step:
+        """Get a step or raise a 404 exception if not found.
+
+        If user is passed, checks membership of a team this step is assigned by a project
+        """
+        join_team_members = True if user else False
+        step = await self._repo.get_step(
+            project_id=project_id,
+            step_num=step_num,
+            join_files=join_files,
+            join_attempts=join_attempts,
+            join_comments=join_comments,
+            join_project=join_project,
+            join_team_members=join_team_members
+        )
+        if not step:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Step not found'
+            )
+        if user:
+            team_member_participant_ids = {member.participant_id for member in step.project.team.team_members}
+            if not user.is_mentor and (not user.participant or user.participant.id not in team_member_participant_ids):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='You are not authorized to access this step'
+                )
+        return step
+
+    async def start_step(
+            self, *,
+            project_id: int,
+            step_num: int,
+            user_team_id: int,
+    ) -> Step:
+        """Start a step for a project."""
+        await self._validate_previous_step_completed(project_id, step_num)
+
+        step = await self.get_step_or_404(project_id=project_id, step_num=step_num, join_project=True)
+        if not step.project.team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team for this project is not found'
+            )
+        if user_team_id != step.project.team.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='You are not authorized to access this step'
+            )
+        if step.status != ProjectStatus.NOT_STARTED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Step is already started'
+            )
+
+        utc_now = datetime.datetime.now(tz=datetime.timezone.utc)
+        end_time = utc_now + datetime.timedelta(minutes=step.timer_minutes)
+
+        await self._repo.create_step_attempt(
+            project_id=project_id,
+            step_num=step_num,
+            started_at=utc_now,
+            end_time_at=end_time,
+            step=step,
+            commit=False
+        )
+
+        await self._repo.set_step_status(
+            project_id=project_id,
+            step_num=step_num,
+            status=ProjectStatus.IN_PROGRESS,
+            commit=True
+        )
+
+        return await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            join_files=True,
+            join_attempts=True,
+            join_comments=True
+        )
+
+    async def set_step_timer(self, *, project_id: int, step_num: int, timer: int) -> Step:
+        """Set or update the timer for a step."""
+        step = await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            join_comments=True,
+            join_files=True,
+            join_attempts=True
+        )
+
+        await self._repo.update_step(
+            step=step,
+            data={'timer_minutes': timer},
+            commit=not step.status == ProjectStatus.IN_PROGRESS
+        )
+
+        if step.status == ProjectStatus.IN_PROGRESS:
+            await self._repo.update_step_attempt_end_time_at(
+                step_attempt=step.attempts[-1],
+                new_timer_minutes=timer,
+                commit=True
+            )
+
+        return step
+
+    async def submit_step(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            text: str,
+            files: list[UploadFile],
+            user_team_id: int
+    ) -> Step:
+        """Submit a step with text and files."""
+        step = await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            join_comments=True,
+            join_attempts=True,
+            join_project=True,
+            join_files=True
+        )
+
+        if user_team_id != step.project.team.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='You are not authorized to access this step'
+            )
+
+        if step.status != ProjectStatus.IN_PROGRESS:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Cannot submit step. First, start the step'
+            )
+
+        await self._remove_step_files_from_fs(step.files)
+
+        files_to_create = await self._upload_files(files, project_id, step_num)
+        try:
+            time_exceeded = self._is_step_time_exceeded(step.attempts[-1])
+            new_status = ProjectStatus.TIME_EXCEEDED if time_exceeded else ProjectStatus.SUBMITTED
+
+            step.attempts[-1].submitted_at = datetime.datetime.now(tz=datetime.timezone.utc)
+            await self._repo.update_step(
+                step=step,
+                data={'text': text, 'status': new_status},
+                commit=False
+            )
+            await self._repo.clear_step_files(step, commit=False)
+            await self._repo.create_step_files(
+                step=step,
+                files=files_to_create,
+                commit=False
+            )
+            await self._repo.set_new_submission(
+                step=step,
+                new_submission=True,
+                commit=True
+            )
+        except Exception as e:
+            for file_result in files_to_create:
+                await FileService.delete_file_from_fs(file_result.full_path)
+            raise e
+
+        return step
+
+    async def accept_step(self, *, project_id: int, step_num: int, score: int) -> Step:
+        """Accept a submitted step with a score."""
+        step = await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            join_files=True,
+            join_attempts=True,
+            join_comments=True,
+            join_project=True
+        )
+
+        if step.status not in (ProjectStatus.SUBMITTED, ProjectStatus.TIME_EXCEEDED):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Step has not been submitted'
+            )
+
+        await self._repo.update_step(
+            step=step,
+            data={
+                'score': score,
+                'status': ProjectStatus.ACCEPTED
+            },
+            commit=False
+        )
+
+        await self._repo.set_new_submission(
+            step=step,
+            new_submission=False,
+            commit=True
+        )
+
+        return step
+
+    async def reject_step(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            timer: Optional[int] = None
+    ) -> Step:
+        """Reject a submitted step."""
+        step = await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            join_files=True,
+            join_attempts=True,
+            join_comments=True,
+            join_project=True
+        )
+
+        if step.status not in (ProjectStatus.SUBMITTED, ProjectStatus.TIME_EXCEEDED):
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Step has not been submitted'
+            )
+
+        # Validation for timer
+        if not timer and step.status == ProjectStatus.TIME_EXCEEDED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Step\'s time exceeded. New timer value is required'
+            )
+
+        if not timer and step.status == ProjectStatus.SUBMITTED:
+            timedelta = step.attempts[-1].end_time_at - step.attempts[-1].submitted_at
+            time_left = round(timedelta.seconds / 60) or 1
+            data = {'timer_minutes': time_left}
+        else:
+            data = {'timer_minutes': timer}
+
+        data['status'] = ProjectStatus.NOT_STARTED
+
+        # Update step data
+        await self._repo.update_step(
+            step=step,
+            data=data,
+            commit=False
+        )
+
+        await self._repo.set_new_submission(
+            step=step,
+            new_submission=False,
+            commit=True
+        )
+
+        return step
+
+    async def get_comments(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            user: User
+    ) -> Sequence[StepComment]:
+        """Get all comments for a step."""
+        step = await self.get_step_or_404(
+            project_id=project_id,
+            step_num=step_num,
+            user=user
+        )
+        return await self._repo.get_comments(step=step, join_files=True)
+
+    async def create_comment(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            text: str,
+            files: list[UploadFile],
+            user: User
+    ) -> StepComment:
+        """Create a comment on a step."""
+        step = await self.get_step_or_404(project_id=project_id, step_num=step_num, user=user)
+        if step.status == ProjectStatus.NOT_STARTED:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail='Step has not been started'
+            )
+        files_to_create = []
+        if files:
+            files_to_create = await self._upload_files(
+                files,
+                project_id,
+                step_num,
+                file_limit=5,
+                comments=True
+            )
+        try:
+            comment = await self._repo.create_comment(
+                step=step,
+                text=text,
+                user=user,
+                join_files=True,
+                commit=not bool(files)  # commit if there are no files
+            )
+
+            if files:
+                await self._repo.create_comment_files(
+                    comment=comment,
+                    files=files_to_create,
+                    commit=True
+                )
+        except Exception as e:
+            if files_to_create:
+                for file_result in files_to_create:
+                    await FileService.delete_file_from_fs(file_result.full_path)
+            raise e
+
+        return comment
+
+    async def delete_comment(
+            self,
+            *,
+            project_id: int,
+            step_num: int,
+            comment_id: int,
+            user: User
+    ) -> None:
+        """Delete a comment if it belongs to the user or user is a mentor."""
+        await self.get_step_or_404(project_id=project_id, step_num=step_num)
+
+        comment = await self._repo.get_comment(comment_id=comment_id, join_files=True)
+        if not comment:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Comment not found'
+            )
+
+        if comment.user_id != user.id and not user.is_mentor:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail='You can delete only your comments'
+            )
+
+        for file in comment.files:
+            full_path = await FileService.construct_full_path_from_relative_path(file.file_path)
+            await FileService.delete_file_from_fs(full_path)
+
+        await self._repo.delete_comment(comment_id=comment_id)

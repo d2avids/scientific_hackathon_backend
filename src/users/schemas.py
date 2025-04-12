@@ -492,3 +492,41 @@ class RegionInDB(ConfiguredModel, IDModel):
             title='Region code',
         )
     ]
+
+
+class ShortUserInDB(ConfiguredModel, IDModel):
+    first_name: Annotated[
+        str,
+        Field(
+            ...,
+            title='First Name',
+            min_length=2,
+            max_length=50
+        )
+    ]
+    last_name: Annotated[
+        str,
+        Field(
+            ...,
+            title='Last Name',
+            min_length=2,
+            max_length=50
+        )
+    ]
+    patronymic: Annotated[
+        Optional[str],
+        Field(
+            default=None,
+            title='Patronymic',
+            min_length=2,
+            max_length=50
+        )
+    ]
+    is_mentor: Annotated[
+        bool,
+        Field(
+            default=False,
+            title='Is Mentor',
+            description='Indicates whether the user is a mentor.',
+        )
+    ]

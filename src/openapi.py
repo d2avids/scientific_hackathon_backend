@@ -43,7 +43,7 @@ AUTHENTICATION_RESPONSES: ResponseDict = {
         'content': {
             'application/json': {
                 'example': {
-                    'detail': 'You are not allowed to modify or access this resourcez.'
+                    'detail': 'You are not allowed to modify or access this resource.'
                 }
             }
         }

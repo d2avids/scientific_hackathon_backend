@@ -1,5 +1,8 @@
 FROM python:3.12-alpine
 
+# Install libmagic (necessary for python-magic lib)
+RUN apk add --no-cache file
+
 ENV POETRY_NO_INTERACTION=1 \
     POETRY_VIRTUALENVS_IN_PROJECT=1 \
     POETRY_VIRTUALENVS_CREATE=1 \

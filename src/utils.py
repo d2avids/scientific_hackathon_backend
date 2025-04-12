@@ -1,5 +1,6 @@
 import re
 import traceback
+import magic
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
@@ -167,7 +168,7 @@ class FileService:
             file: UploadFile,
             path_segments: list[str],
             allowed_mime_types: list[str],
-            size_limit_megabytes: int,
+            size_limit_kilobytes: int,
     ) -> FileUploadResult:
         """
         Helper function to validate and upload file in the filesystem.
@@ -183,22 +184,23 @@ class FileService:
         :param file: UploadFile to be uploaded
         :param allowed_mime_types: list of allowed MIME types. E.g., ['image/jpeg', 'image/png', 'image/gif']
                                    (https://developer.mozilla.org/en-US/docs/Web/HTTP/MIME_types/Common_types)
-        :param size_limit_megabytes: int
+        :param size_limit_kilobytes: int
         :return: FileUploadResult obj.
         """
         file_name = file.filename
-        mime_type = file.content_type
+
+        content = await file.read()
+        mime_type = magic.from_buffer(content[:4096], mime=True)
         if mime_type not in allowed_mime_types:
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=f'Invalid file format. Allowed formats: {", ".join(allowed_mime_types)}'
             )
-        content = await file.read()
         file_size = len(content)
-        if file_size > size_limit_megabytes * 1024 * 1024:
+        if file_size > size_limit_kilobytes * 1024:
             raise HTTPException(
                 status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f'File size exceeds the limit of {size_limit_megabytes} MB'
+                detail=f'File size exceeds the limit of {size_limit_kilobytes} KB'
             )
         await file.seek(0)
         media_dir = BASE_DIR / settings.MEDIA_DIR
@@ -217,7 +219,6 @@ class FileService:
             await out_file.write(content)
 
         relative_path = f'{str(settings.MEDIA_DIR)}/' + '/'.join(path_segments) + f'/{file_name}'
-
         return FileUploadResult(
             full_path=full_path,
             relative_path=relative_path,

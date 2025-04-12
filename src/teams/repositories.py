@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 from exceptions import NotFoundError, AlreadyExistsError
 from teams.models import Team, TeamMember
 from teams.schemas import TeamCreate, TeamMemberCreateUpdate
+from users.models import User
 
 
 class TeamRepo:
@@ -120,9 +121,9 @@ class TeamRepo:
         return result.scalar_one_or_none()
 
     async def get_by_role_name(
-        self,
-        name: str,
-        team_id: int,
+            self,
+            name: str,
+            team_id: int,
     ) -> Optional[Team]:
         base_query = select(Team).where(Team.id == team_id)
         base_query = base_query.where(Team.team_members.any(TeamMember.role_name.ilike(f'%{name}%')))
@@ -273,22 +274,22 @@ class TeamMemberRepo:
         return result.scalars().unique().one_or_none()
 
     async def get_by_team(
-        self,
-        team_id: int,
-        *,
-        team_join: bool = False,
-        participant_join: bool = False,
+            self,
+            team_id: int,
+            *,
+            team_join: bool = False,
+            participant_join: bool = False,
     ) -> Sequence[TeamMember]:
         base_query = select(TeamMember).where(TeamMember.team_id == team_id)
         base_query = self._add_team_member_joins(base_query, team_join, participant_join)
         result = await self._db.execute(base_query)
         return result.scalars().all()
 
-    async def get_by_user_id(
-        self,
-        user_id: int,
+    async def get_by_user(
+            self,
+            user: User,
     ) -> Optional[TeamMember]:
-        base_query = select(TeamMember).join(TeamMember.participant).where(TeamMember.participant.has(user_id=user_id))
+        base_query = select(TeamMember).where(TeamMember.participant_id == user.participant.id)
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
@@ -365,8 +366,8 @@ class TeamMemberRepo:
             await self._db.commit()
 
     async def get_by_name(
-        self,
-        name: str,
+            self,
+            name: str,
     ) -> Optional[TeamMember]:
         base_query = select(TeamMember).where(TeamMember.role_name.ilike(f'%{name}%'))
         result = await self._db.execute(base_query)

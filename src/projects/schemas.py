@@ -6,6 +6,7 @@ from pydantic import Field, field_serializer, model_validator
 
 from schemas import ConfiguredModel, IDModel
 from settings import settings
+from users.schemas import ShortUserInDB
 
 
 class ProjectBase(ConfiguredModel):
@@ -40,6 +41,14 @@ class ProjectInDB(ProjectBase, IDModel):
         Field(
             ...,
             title='Sum of step scores for this project'
+        )
+    ]
+    new_submission: Annotated[
+        bool,
+        Field(
+            ...,
+            title='New submission status',
+            description='Indicates whether there is an unchecked step submission for a mentor'
         )
     ]
     created_at: Annotated[
@@ -94,7 +103,7 @@ class ProjectUpdate(ConfiguredModel):
         )
     ]
 
-    @model_validator(mode="before")
+    @model_validator(mode='before')
     @classmethod
     def check_explicit_null_fields(cls, values):
         fields_cant_be_none_if_present = [
@@ -108,51 +117,41 @@ class ProjectUpdate(ConfiguredModel):
         return values
 
 
-class StepInDB(ConfiguredModel, IDModel):
-    project_id: Annotated[
-        int,
-        Field(
-            ...,
-            title='Project ID',
-        )
-    ]
-    step_number: Annotated[
-        int,
-        Field(
-            ...,
-            title='Step number',
-        )
-    ]
-    text: Annotated[
-        Optional[str],
-        Field(
-            title='Team\'s answer on this step',
-        )
-    ]
-    score: Annotated[
-        int,
-        Field(
-            ...,
-            title='Score',
-        )
-    ]
-    timer_minutes: Annotated[
-        int,
-        Field(
-            ...,
-            title='Timer minutes',
-        )
-    ]
-    status: Annotated[
-        str,
-        Field(
-            ...,
-            title='Status',
-        )
-    ]
-    updated_at: Annotated[
-        Optional[datetime],
-        Field(
-            title='Updated at',
-        )
-    ]
+class StepBase(ConfiguredModel):
+    project_id: Annotated[int, Field(..., title='Project ID')]
+    step_number: Annotated[int, Field(..., title='Step number')]
+    text: Annotated[Optional[str], Field(None, title='Team\'s answer on this step')]
+    score: Annotated[int, Field(..., title='Score')]
+    timer_minutes: Annotated[int, Field(..., title='Timer minutes')]
+    status: Annotated[str, Field(..., title='Status')]
+    updated_at: Annotated[Optional[datetime], Field(None, title='Updated at')]
+
+
+class StepInDB(StepBase, IDModel):
+    """Step schema for list of steps."""
+
+
+class StepAttemptInDB(ConfiguredModel):
+    started_at: Annotated[datetime, Field(...)]
+    end_time_at: Annotated[datetime, Field(...)]
+    submitted_at: Annotated[Optional[datetime], Field(None)]
+
+
+class FileInDB(ConfiguredModel):
+    file_path: Annotated[str, Field(...)]
+    name: Annotated[str, Field(title='File name', )]
+    size: Annotated[float, Field(title='File size', description='File size represented in bytes', )]
+    mimetype: Annotated[str, Field(title='File mimetype', )]
+
+
+class StepCommentInDB(ConfiguredModel, IDModel):
+    user: Annotated[ShortUserInDB, Field(...)]
+    text: Annotated[str, Field(...)]
+    created_at: Annotated[datetime, Field(...)]
+    files: Annotated[list[FileInDB], Field(default_factory=list)]
+
+
+class StepWithRelations(StepInDB):
+    attempts: Annotated[list[StepAttemptInDB], Field(default_factory=list)]
+    files: Annotated[list[FileInDB], Field(default_factory=list)]
+    comments: Annotated[list[StepCommentInDB], Field(default_factory=list)]

@@ -148,6 +148,6 @@ class UserDocument(CreatedUpdatedAt, Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     path: Mapped[str] = mapped_column(String, nullable=False)
     mimetype: Mapped[str] = mapped_column(String, nullable=False)
-    size: Mapped[float] = mapped_column(Float, nullable=False)
+    size: Mapped[float] = mapped_column(Float, nullable=False)  # bytes
 
     user: Mapped['User'] = relationship('User', back_populates='documents')

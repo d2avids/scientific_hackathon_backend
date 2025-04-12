@@ -21,8 +21,8 @@ USER web
 COPY --chown=web:web poetry.lock pyproject.toml ./
 COPY --chown=web:web src .
 
-RUN poetry install --without dev && rm -rf $POETRY_CACHE_DIR
+RUN poetry install && rm -rf $POETRY_CACHE_DIR
 
-EXPOSE 8000
+EXPOSE ${BACKEND_PORT}
 
-CMD ["poetry", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["poetry", "run", "uvicorn", "main:app", "--host", "127.0.0.1", "--port", "${BACKEND_PORT}"]

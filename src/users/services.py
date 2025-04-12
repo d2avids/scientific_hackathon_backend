@@ -154,10 +154,11 @@ class UserService:
                     main_fields[key] = update_data[key]
 
             if main_fields:
+                commit = False if participant_data or mentor_data else True
                 current_user = await self._repo.update_user(
                     user_id=user_id,
                     update_data=main_fields,
-                    commit=False
+                    commit=commit
                 )
 
             if participant_data and not current_user.is_mentor:

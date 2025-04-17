@@ -34,6 +34,8 @@ class AuthSettings(BaseSettings):
 class Settings(BaseSettings):
     DEBUG: bool = os.getenv('DEBUG').lower() == 'true'
 
+    ALLOWED_ORIGINS: list[str] = os.getenv('ALLOWED_ORIGINS').split(',')
+
     PROJECT_NAME: str
     MEDIA_DIR: str = os.getenv('media', 'media')
     SERVER_URL: str = 'http://127.0.0.1:8000/'

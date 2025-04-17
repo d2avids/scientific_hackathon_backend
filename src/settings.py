@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 from dotenv import find_dotenv, load_dotenv
+from pydantic import AnyHttpUrl, Field
 from pydantic_settings import BaseSettings
 
 load_dotenv(find_dotenv())
@@ -34,8 +35,7 @@ class AuthSettings(BaseSettings):
 class Settings(BaseSettings):
     DEBUG: bool = os.getenv('DEBUG').lower() == 'true'
 
-    ALLOWED_ORIGINS: list[str] = os.getenv('ALLOWED_ORIGINS').split(',')
-
+    ALLOWED_ORIGINS: list[AnyHttpUrl] = Field(default_factory=list)
     PROJECT_NAME: str
     MEDIA_DIR: str = os.getenv('media', 'media')
     SERVER_URL: str = 'http://127.0.0.1:8000/'

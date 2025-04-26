@@ -19,7 +19,7 @@ class TeamService:
 
     async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDB:
         try:
-            team_db = await self._repo.create(team_data=team, mentor_id=mentor_id)
+            team_db = await self._repo.create_team(team_data=team, mentor_id=mentor_id)
             team_model = TeamInDB.model_validate(team_db)
             team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team_db.team_members]
             return team_model

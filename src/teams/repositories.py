@@ -119,7 +119,7 @@ class TeamRepo:
         result = await self._db.execute(query)
         return result.scalar_one_or_none()
 
-    async def create(
+    async def create_team(
             self,
             team_data: TeamCreate,
             mentor_id: int,
@@ -134,7 +134,7 @@ class TeamRepo:
             members_sequence = (
                 team_data.team_members if isinstance(team_data.team_members, Sequence) else [team_data.team_members]
             )
-            await member_repo.create_several_team_members(members_sequence, team.id)
+            await member_repo.create_several_team_members(members_sequence, team.id, commit=False)
         await self._db.commit()
         await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
@@ -168,15 +168,21 @@ class TeamRepo:
 
     async def update_team_members(self, team_id: int, members_data: list[dict], commit: bool = True):
         member_repo = TeamMemberRepo(self._db)
+        updated_members = []
         for member_data in members_data:
             member = await member_repo.get_team_member_by_participant_id(member_data['participant_id'])
             if member:
-                await member_repo.update_team_member(
+                updated_member = await member_repo.update_team_member(
                     team_id=team_id,
                     team_member_id=member.id,
                     update_data=member_data,
-                    commit=commit
+                    commit=False
                 )
+                updated_members.append(updated_member)
+        if commit:
+            await self._db.commit()
+            for member in updated_members:
+                await self._db.refresh(member)
 
     async def delete_team_project(self, team_id: int) -> None:
         await self._db.execute(update(Team).where(Team.id == team_id).values(project_id=None))
@@ -289,6 +295,7 @@ class TeamMemberRepo:
             self,
             team_members_data: Sequence[TeamMemberCreateUpdate],
             team_id: int,
+            commit: bool = True,
     ) -> list[TeamMember]:
         team_members = []
         for member in team_members_data:
@@ -300,7 +307,8 @@ class TeamMemberRepo:
         await self._db.flush()
         for member_db in team_members:
             await self._db.refresh(member_db, attribute_names=['team', 'participant'])
-        await self._db.commit()
+        if commit:
+            await self._db.commit()
         return team_members
 
     async def update_team_member(

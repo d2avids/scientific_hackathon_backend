@@ -12,11 +12,20 @@ class ProjectRepo:
     def __init__(self, db: AsyncSession):
         self._db = db
 
-    async def get_by_id(self, project_id: int, join_steps: bool = False) -> Optional[Project]:
+    async def get_by_id(
+        self,
+        project_id: int,
+        join_steps: bool = False,
+        join_team: bool = False
+    ) -> Optional[Project]:
         base_query = select(Project).where(Project.id == project_id)  # type: ignore
         if join_steps:
             base_query = base_query.options(
                 joinedload(Project.steps)
+            )
+        if join_team:
+            base_query = base_query.options(
+                joinedload(Project.team)
             )
         result = await self._db.execute(base_query)
         return result.unique().scalar_one_or_none()

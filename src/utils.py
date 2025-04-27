@@ -255,13 +255,14 @@ class FileService:
             name=file_name
         )
 
-    async def create_zip_from_directory(folder_path: Path) -> Path:
+    async def create_zip_from_directory(folder_path: Path, text: str) -> Path:
         zip_path = folder_path.parent / (folder_path.name + '.zip')
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for root, _, files in os.walk(folder_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     zip_file.write(file_path, os.path.relpath(file_path, folder_path))
+            zip_file.writestr('Описание_проекта.txt', text)
         return zip_path
 
 

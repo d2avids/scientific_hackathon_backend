@@ -1,14 +1,17 @@
 import json
+import mimetypes
 from math import ceil
-from typing import Sequence, Optional
+from typing import Optional, Sequence
 
-from fastapi import UploadFile, HTTPException, status
+from fastapi import HTTPException, UploadFile, status, BackgroundTasks
+from fastapi.responses import FileResponse
 from pydantic_core import ValidationError
 
 from projects.models import Project
 from projects.repositories import ProjectRepo
-from projects.schemas import ProjectInDB, ProjectCreate, ProjectUpdate
-from utils import create_field_map_for_model, parse_ordering, FileService, clean_errors, FileUploadResult
+from projects.schemas import ProjectCreate, ProjectInDB, ProjectUpdate
+from utils import (FileService, FileUploadResult, clean_errors,
+                   create_field_map_for_model, parse_ordering)
 
 
 class ProjectService:
@@ -143,3 +146,44 @@ class ProjectService:
         await self._repo.delete(project_id)
         document_path = await FileService.construct_full_path_from_relative_path(project.document_path)
         await FileService.delete_file_from_fs(document_path)
+
+    async def download_file(self, project_id: int, document_name: str):
+        project = await self._repo.get_by_id(project_id, join_steps=False)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+        document_path = await FileService.get_doc_path(project_id, document_name, is_project=True)
+        if not document_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'File {document_name} not found in project {project_id}'
+            )
+        media_type, _ = mimetypes.guess_type(document_name)
+        return FileResponse(
+            path=document_path,
+            media_type=media_type or 'application/octet-stream',
+            filename=document_name
+        )
+
+    async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks):
+        project = await self._repo.get_by_id(project_id, join_steps=False)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+        folder_path = FileService.get_media_folder_path(project_id, is_project=True)
+        if not folder_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+        zip_path = await FileService.create_zip_from_directory(folder_path)
+        background_tasks.add_task(FileService.delete_file_from_fs, zip_path)
+        return FileResponse(
+            path=zip_path,
+            media_type='application/zip',
+            filename=f'project_{project_id}_files.zip'
+        )

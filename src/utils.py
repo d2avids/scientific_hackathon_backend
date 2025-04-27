@@ -1,14 +1,15 @@
+import os
 import re
 import traceback
+import zipfile
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
-from typing import Optional, Union
-from typing import Type, Literal
+from typing import Literal, Optional, Type, Union
 
 import aiofiles
 import aiosmtplib as aiosmtp
-from fastapi import UploadFile, HTTPException, status, File
+from fastapi import File, HTTPException, UploadFile, status
 from pydantic import BaseModel
 
 from settings import BASE_DIR, settings
@@ -140,6 +141,34 @@ class FileService:
         return BASE_DIR / safe_file_path
 
     @staticmethod
+    async def get_doc_path(instance_id: int, document_name: str, is_project: bool) -> Path:
+        """
+        Get the full path to a document in the filesystem.
+        
+        Args:
+            instance_id: int - ID of the project or user
+            document_name: str - Name of the document
+            is_project: bool - Whether the document is a project document or user document
+        Returns:
+            Path: Full path to the document in the filesystem
+        """
+
+        if is_project:
+            folder_name = 'projects'
+        else:
+            folder_name = 'users'
+        safe_file_path = f'media/{folder_name}/{instance_id}/{document_name}'.lstrip('/\\')
+        return BASE_DIR / safe_file_path
+
+    @staticmethod
+    def get_media_folder_path(instance_id: int, is_project: bool) -> Path:
+        if is_project:
+            folder_name = 'projects'
+        else:
+            folder_name = 'users'
+        return BASE_DIR / f'media/{folder_name}/{instance_id}'
+    
+    @staticmethod
     async def delete_file_from_fs(full_path: Path) -> None:
         if full_path.exists():
             full_path.unlink()
@@ -225,6 +254,15 @@ class FileService:
             size_bytes=file_size,
             name=file_name
         )
+
+    async def create_zip_from_directory(folder_path: Path) -> Path:
+        zip_path = folder_path.parent / (folder_path.name + '.zip')
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            for root, _, files in os.walk(folder_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    zip_file.write(file_path, os.path.relpath(file_path, folder_path))
+        return zip_path
 
 
 def clean_errors(errors: list[dict]) -> list[dict]:

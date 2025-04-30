@@ -1,10 +1,12 @@
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, status, Query, UploadFile, Form, File, Body, Path
+from fastapi import APIRouter, Depends, status, Query, UploadFile, Form, File, Body, Path, BackgroundTasks
+from fastapi.responses import FileResponse
 
 from auth.services import get_current_user
 from openapi import NOT_FOUND_RESPONSE, AUTHENTICATION_RESPONSES, FILE_UPLOAD_RELATED_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
+from permissions import require_mentor, ensure_team_captain
 from projects.dependencies import get_project_service, get_step_service
 from projects.openapi import (
     PROJECT_CREATE_RESPONSES,
@@ -18,7 +20,6 @@ from projects.openapi import (
 from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB
 from projects.services import ProjectService, StepService
 from users.models import User
-from permissions import require_mentor, ensure_team_captain
 
 router = APIRouter(prefix='/projects')
 
@@ -382,3 +383,56 @@ async def delete_comment(
         comment_id=comment_id,
         user=current_user
     )
+
+
+@router.get(
+    '/{project_id}/files/{document_path}',
+    tags=[PROJECT_TAG],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+    },
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK
+)
+async def download_file(
+        project_id: int,
+        document_name: str,
+        service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(require_mentor)
+):
+    """
+    ## Download a specific file from a project. Mentor rights required
+    Args:
+        project_id: int - ID of the project
+        document_name: str - Name of the document to download
+    Returns:
+        FileResponse: File response with the requested document
+    """
+    return await service.download_file(project_id, document_name)
+
+
+@router.get(
+    '/{projects_id}/all_files',
+    tags=[PROJECT_TAG],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+    },
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK
+)
+async def download_all_files(
+        projects_id: int,
+        background_tasks: BackgroundTasks,
+        service: ProjectService = Depends(get_project_service),
+        current_user: User = Depends(require_mentor)
+):
+    """
+    ## Download all files from a project. Mentor rights required
+    Args:
+        projects_id: int - ID of the project
+    Returns:
+        FileResponse: File response with all files from the project
+    """
+    return await service.download_all_files(projects_id, background_tasks)

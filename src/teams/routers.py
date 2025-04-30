@@ -234,3 +234,24 @@ async def delete_team_member(
     Allowed for mentors only.
     """
     await service.delete_team_member(team_id, team_member_id)
+
+
+@router.delete(
+    '/teams/{team_id}/project',
+    tags=[TEAMS_PREFIX],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE
+    },
+    status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_team_project(
+    team_id: int,
+    service: TeamService = Depends(get_team_service),
+    current_user: User = Depends(require_mentor)
+):
+    """
+    ## Delete a team's project.
+    Allowed for mentors only.
+    """
+    await service.delete_team_project(team_id)

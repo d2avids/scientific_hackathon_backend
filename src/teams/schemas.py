@@ -57,7 +57,7 @@ class TeamBase(ConfiguredModel):
         if self.team_members:
             captain_count = sum(
                 1 for member in self.team_members
-                if member.role_name and 'капитан' in member.role_name.lower()
+                if member.role_name and member.role_name.lower().startswith('капитан')
             )
             if captain_count > 1:
                 raise ValueError('Team can have only one captain')

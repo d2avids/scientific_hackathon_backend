@@ -19,7 +19,7 @@ class TeamService:
 
     async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDB:
         try:
-            team_db = await self._repo.create(team_data=team, mentor_id=mentor_id)
+            team_db = await self._repo.create_team(team_data=team, mentor_id=mentor_id)
             team_model = TeamInDB.model_validate(team_db)
             team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team_db.team_members]
             return team_model
@@ -34,23 +34,26 @@ class TeamService:
             team_id: int,
             update_data: TeamUpdate,
     ) -> TeamUpdate:
-        team_members = None
         try:
-            if update_data.team_members:
-                update_dict = update_data.model_dump(exclude_unset=True)
-                team_members = update_dict.pop('team_members')
-                update_data = TeamUpdate.model_validate(update_dict)
+            update_dict = update_data.model_dump(exclude_unset=True)
+            team_members = update_dict.pop('team_members', None)
+
+            if team_members:
                 if len(team_members) > 10:
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail='The maximum number of team members is 10.'
                     )
-            team = await self._repo.update_team(team_id, update_data.model_dump(exclude_unset=True))
-            team_model = TeamUpdate.model_validate(team)
-            if team_members:
                 team_members = [TeamMemberCreateUpdate.model_validate(member) for member in team_members]
-                await self._repo.update_team_members(team_id, [member.model_dump() for member in team_members])
-                team_model.team_members = team_members
+
+            update_data = TeamUpdate.model_validate(update_dict)
+
+            team = await self._repo.update_team(
+                team_id=team_id,
+                update_data=update_data.model_dump(exclude_unset=True),
+                team_members=team_members
+            )
+            team_model = TeamUpdate.model_validate(team)
             return team_model
         except NotFoundError:
             raise HTTPException(
@@ -121,6 +124,15 @@ class TeamService:
         total_pages = ceil(total / limit) if total > 0 else 1
         return teams_models, total, total_pages
 
+    async def delete_team_project(self, team_id: int) -> None:
+        team = await self._repo.get_by_id(team_id)
+        if not team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Team not found'
+            )
+        await self._repo.delete_team_project(team_id)
+
 
 class TeamMemberService:
     def __init__(self, repo: TeamMemberRepo):
@@ -186,8 +198,8 @@ class TeamMemberService:
                 detail='Team member not found'
             )
         if (
-            (role_name.lower().startswith('капитан') or team_member.participant_id == current_user.participant.id)
-            and not current_user.is_mentor
+            not current_user.is_mentor
+            and ((role_name.lower().startswith('капитан') or team_member.participant_id == current_user.participant.id))
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

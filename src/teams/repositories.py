@@ -147,7 +147,7 @@ class TeamRepo:
             members_sequence = (
                 team_data.team_members if isinstance(team_data.team_members, Sequence) else [team_data.team_members]
             )
-            await member_repo.create_several_team_members(members_sequence, team.id)
+            await member_repo.create_several_team_members(members_sequence, team.id, commit=False)
         await self._db.commit()
         await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
@@ -156,6 +156,7 @@ class TeamRepo:
             self,
             team_id: int,
             update_data: dict,
+            team_members: Optional[list[dict]] = None
     ) -> Team:
         team_members = update_data.pop('team_members', None)
         team = await self.get_by_id(team_id)
@@ -167,9 +168,10 @@ class TeamRepo:
         self._db.add(team)
         await self._db.flush()
         if team_members is not None:
-            await self.update_team_members(team_id, team_members)
+            members_data = [member.model_dump() if hasattr(member, 'model_dump') else member for member in team_members]
+            await self.update_team_members(team_id, members_data, commit=False)
         await self._db.commit()
-        await self._db.refresh(team)
+        await self._db.refresh(team, attribute_names=['mentor', 'project', 'team_members'])
         return team
 
     async def delete_team(
@@ -179,16 +181,27 @@ class TeamRepo:
         await self._db.execute(delete(Team).where(Team.id == team_id))
         await self._db.commit()
 
-    async def update_team_members(self, team_id: int, members_data: list[dict]):
+    async def update_team_members(self, team_id: int, members_data: list[dict], commit: bool = True):
         member_repo = TeamMemberRepo(self._db)
+        updated_members = []
         for member_data in members_data:
             member = await member_repo.get_team_member_by_participant_id(member_data['participant_id'])
             if member:
-                await member_repo.update_team_member(
+                updated_member = await member_repo.update_team_member(
                     team_id=team_id,
                     team_member_id=member.id,
-                    update_data=member_data
+                    update_data=member_data,
+                    commit=False
                 )
+                updated_members.append(updated_member)
+        if commit:
+            await self._db.commit()
+            for member in updated_members:
+                await self._db.refresh(member)
+
+    async def delete_team_project(self, team_id: int) -> None:
+        await self._db.execute(update(Team).where(Team.id == team_id).values(project_id=None))
+        await self._db.commit()
 
 
 class TeamMemberRepo:
@@ -297,6 +310,7 @@ class TeamMemberRepo:
             self,
             team_members_data: Sequence[TeamMemberCreateUpdate],
             team_id: int,
+            commit: bool = True,
     ) -> list[TeamMember]:
         team_members = []
         for member in team_members_data:
@@ -308,7 +322,8 @@ class TeamMemberRepo:
         await self._db.flush()
         for member_db in team_members:
             await self._db.refresh(member_db, attribute_names=['team', 'participant'])
-        await self._db.commit()
+        if commit:
+            await self._db.commit()
         return team_members
 
     async def update_team_member(
@@ -316,6 +331,7 @@ class TeamMemberRepo:
             team_id: int,
             team_member_id: int,
             update_data: dict,
+            commit: bool = True,
     ) -> TeamMember:
         team_member = await self.get_team_member_by_id(team_member_id)
         if not team_member:
@@ -324,11 +340,12 @@ class TeamMemberRepo:
             raise AlreadyExistsError('Team member is already on another team')
         for key, value in update_data.items():
             if key == 'role_name' and value.lower().startswith('капитан'):
-                await self.update_captain_role(team_id, self.DEFAULT_ROLE_NAME)
+                await self.update_captain_role(team_id, self.DEFAULT_ROLE_NAME, commit=False)
             setattr(team_member, key, value)
         self._db.add(team_member)
-        await self._db.commit()
-        await self._db.refresh(team_member)
+        if commit:
+            await self._db.commit()
+            await self._db.refresh(team_member)
         return team_member
 
     async def delete_team_member(
@@ -348,7 +365,7 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
-    async def update_captain_role(self, team_id: int, default_role: str) -> None:
+    async def update_captain_role(self, team_id: int, default_role: str, commit: bool = True) -> None:
         query = (
             update(TeamMember)
             .where(
@@ -363,7 +380,8 @@ class TeamMemberRepo:
         if result.rowcount == 0:
             pass
         else:
-            await self._db.commit()
+            if commit:
+                await self._db.commit()
 
     async def get_by_name(
             self,

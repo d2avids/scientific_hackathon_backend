@@ -15,7 +15,7 @@ from users.openapi import (
     USER_GET_RESPONSES,
     USER_VERIFY_RESPONSES,
 )
-from users.permissions import require_mentor, ensure_owner_or_admin, ensure_document_ownership, require_admin
+from permissions import require_mentor, ensure_owner_or_admin, ensure_document_ownership, require_admin
 from users.schemas import UserInDB, RegionInDB, UserCreate, UserDocumentInDB
 from users.services import RegionService, UserService, UserDocumentService
 from utils import FileService

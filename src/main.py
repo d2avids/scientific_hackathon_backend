@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
 from uvicorn import run
 
@@ -15,6 +16,14 @@ app = FastAPI(
     redoc_url=settings.REDOC_URL,
     docs_url=settings.DOCS_URL,
     openapi_url=settings.OPENAPI_URL,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
 )
 
 app.include_router(user_router_v1, prefix='/api/v1', )

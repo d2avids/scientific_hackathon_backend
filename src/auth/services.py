@@ -6,6 +6,7 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, ResetCodeStorage
 from auth.config import PasswordEncryption, TokenType, JWT
 from auth.schemas import TokenOut
+from constants import RESET_PASSWORD_EMAIL_SUBJECT, RESET_PASSWORD_EMAIL_MESSAGE
 from settings import settings
 from users.dependencies import get_user_repo
 from users.models import User
@@ -115,20 +116,12 @@ async def reset_password_service(
 
     reset_link = f'{settings.auth.FRONTEND_RESET_PASSWORD_CALLBACK_URL}?user_id={user.id}&token={token}'
 
-    message = (
-        f'Добрый день, {user.first_name}!\n\n'
-        'Вы получили это письмо, так как запросили сброс пароля для вашего аккаунта.\n'
-        f'Чтобы установить новый пароль, перейдите по следующей ссылке:\n{reset_link}\n\n'
-        'Если вы не инициировали сброс пароля, просто проигнорируйте это сообщение.\n\n'
-        'С уважением, команда сайта Научный Хакатон.'
-    )
-
     background_tasks.add_task(
         send_mail,
         to_email=user.email,
-        subject='Сброс пароля на сайте "Научный Хакатон"',
-        message=message
-    )
+        subject=RESET_PASSWORD_EMAIL_SUBJECT,
+        message=RESET_PASSWORD_EMAIL_MESSAGE.format(reset_link=reset_link),
+    )  # type: ignore
 
 
 async def reset_password_callback_service(

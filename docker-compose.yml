@@ -21,7 +21,6 @@ services:
       - "127.0.0.1:${POSTGRES_PORT}:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
-      - ./media:/app/media/
     logging: *logging
   backend:
     build: .
@@ -30,7 +29,8 @@ services:
     depends_on:
       - postgres
     ports:
-      - "127.0.0.1:${BACKEND_PORT}:8000"
+      - "127.0.0.1:${BACKEND_PORT}:${BACKEND_PORT}"
     volumes:
       - ./logs:/app/logs
+      - /srv/scientific_hackathon_backend/media:/app/media
     logging: *logging

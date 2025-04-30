@@ -2,6 +2,7 @@ import os
 import re
 import traceback
 import zipfile
+import magic
 from dataclasses import dataclass
 from email.message import EmailMessage
 from pathlib import Path
@@ -144,7 +145,7 @@ class FileService:
     async def get_doc_path(instance_id: int, document_name: str, is_project: bool) -> Path:
         """
         Get the full path to a document in the filesystem.
-        
+
         Args:
             instance_id: int - ID of the project or user
             document_name: str - Name of the document
@@ -167,7 +168,7 @@ class FileService:
         else:
             folder_name = 'users'
         return BASE_DIR / f'media/{folder_name}/{instance_id}'
-    
+
     @staticmethod
     async def delete_file_from_fs(full_path: Path) -> None:
         if full_path.exists():
@@ -216,13 +217,14 @@ class FileService:
         :return: FileUploadResult obj.
         """
         file_name = file.filename
-        mime_type = file.content_type
+
+        content = await file.read()
+        mime_type = magic.from_buffer(content[:4096], mime=True)
         if mime_type not in allowed_mime_types:
             raise HTTPException(
                 status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE,
                 detail=f'Invalid file format. Allowed formats: {", ".join(allowed_mime_types)}'
             )
-        content = await file.read()
         file_size = len(content)
         if file_size > size_limit_megabytes * 1024 * 1024:
             raise HTTPException(
@@ -246,7 +248,6 @@ class FileService:
             await out_file.write(content)
 
         relative_path = f'{str(settings.MEDIA_DIR)}/' + '/'.join(path_segments) + f'/{file_name}'
-
         return FileUploadResult(
             full_path=full_path,
             relative_path=relative_path,

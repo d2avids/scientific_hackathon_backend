@@ -8,7 +8,7 @@ from exceptions import AlreadyExistsError, NotFoundError
 from teams.repositories import TeamMemberRepo, TeamRepo
 from teams.schemas import TeamCreate, TeamInDB, TeamMemberInDB, TeamUpdate, TeamMemberCreateUpdate
 from users.models import User
-from utils import create_field_map_for_model, parse_ordering
+from utils import create_field_map_for_model, parse_ordering, FileService
 
 
 class TeamService:
@@ -79,6 +79,8 @@ class TeamService:
                 detail='Team not found'
             )
         await self._repo.delete_team(team_id)
+        if team.project_id:
+            await FileService.delete_all_files_in_directory(['projects', str(team.project_id)])
 
     async def get_team_by_id(self, team_id: int) -> TeamInDB:
         team = await self._repo.get_by_id(team_id)

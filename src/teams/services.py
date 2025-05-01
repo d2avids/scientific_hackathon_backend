@@ -198,8 +198,8 @@ class TeamMemberService:
                 detail='Team member not found'
             )
         if (
-            not current_user.is_mentor
-            and ((role_name.lower().startswith('капитан') or team_member.participant_id == current_user.participant.id))
+            not current_user.is_mentor and
+            ((role_name.lower().startswith('капитан') or team_member.participant_id == current_user.participant.id))
         ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,

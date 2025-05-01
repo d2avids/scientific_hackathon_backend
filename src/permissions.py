@@ -125,8 +125,14 @@ async def ensure_team_captain(
         team_member_repo: TeamMemberRepo = Depends(get_team_member_repo)
 ) -> tuple[User, int]:
     """Ensure that the current user is a captain of some team."""
+    print(f'{current_user=} {current_user.is_mentor=}')
+    if current_user.is_mentor:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail='Not for mentors'
+        )
     team_member = await team_member_repo.get_by_user(current_user)
-    if not team_member.role_name.lower().startswith('капитан'):
+    if not team_member or not team_member.role_name.lower().startswith('капитан'):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Only captains are allowed'

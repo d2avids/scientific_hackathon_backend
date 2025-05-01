@@ -8,7 +8,7 @@ from email.message import EmailMessage
 from pathlib import Path
 from typing import Literal, Optional, Type, Union
 
-import aiofiles
+import aiofiles  # type: ignore
 import aiosmtplib as aiosmtp
 from fastapi import File, HTTPException, UploadFile, status
 from pydantic import BaseModel
@@ -162,12 +162,21 @@ class FileService:
         return BASE_DIR / safe_file_path
 
     @staticmethod
-    def get_media_folder_path(instance_id: int, is_project: bool) -> Path:
-        if is_project:
-            folder_name = 'projects'
-        else:
-            folder_name = 'users'
-        return BASE_DIR / f'media/{folder_name}/{instance_id}'
+    def get_media_folder_path(
+        project_id: int | None,
+        step_id: int | None = None,
+        user_id: int | None = None,
+        is_project: bool = False,
+        is_step: bool = False,
+        is_user: bool = False
+    ) -> Path:
+        if is_project and project_id:
+            folder_path = f'media/projects/{project_id}'
+        elif is_step and step_id and project_id:
+            folder_path = f'media/projects/{project_id}/steps/{step_id}'
+        elif is_user and user_id:
+            folder_path = f'media/users/{user_id}'
+        return BASE_DIR / folder_path
 
     @staticmethod
     async def delete_file_from_fs(full_path: Path) -> None:
@@ -256,14 +265,15 @@ class FileService:
             name=file_name
         )
 
-    async def create_zip_from_directory(folder_path: Path, text: str) -> Path:
+    @staticmethod
+    async def create_zip_from_directory(folder_path: Path, text: str, file_name: str = 'Описание_проекта.txt') -> Path:
         zip_path = folder_path.parent / (folder_path.name + '.zip')
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             for root, _, files in os.walk(folder_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     zip_file.write(file_path, os.path.relpath(file_path, folder_path))
-            zip_file.writestr('Описание_проекта.txt', text)
+            zip_file.writestr(file_name, text)
         return zip_path
 
 
@@ -274,3 +284,21 @@ def clean_errors(errors: list[dict]) -> list[dict]:
         if 'url' in err:
             err.pop('url', None)
     return errors
+
+
+def dict_to_text(data: dict, pretext: str = '') -> str:
+    """Converts a dictionary to a formatted text string."""
+    text = pretext
+    for key, value in data.items():
+        if isinstance(value, list):
+            text += f"{key}:\n"
+            for item in value:
+                if isinstance(item, dict):
+                    item_text = dict_to_text(item)
+                    item_text = '\n'.join(f'  {line}' for line in item_text.split('\n'))
+                    text += f"{item_text}\n"
+                else:
+                    text += f"  {item}\n"
+        else:
+            text += f"{key}: {value}\n"
+    return text

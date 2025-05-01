@@ -22,7 +22,8 @@ class ProjectRepo:
         self,
         project_id: int,
         join_steps: bool = False,
-        join_team: bool = False
+        join_team: bool = False,
+        join_comments: bool = False,
     ) -> Optional[Project]:
         base_query = select(Project).where(Project.id == project_id)  # type: ignore
         if join_steps:
@@ -33,6 +34,15 @@ class ProjectRepo:
         if join_team:
             base_query = base_query.options(
                 joinedload(Project.team)
+            )
+        if join_comments:
+            base_query = base_query.options(
+                joinedload(Project.steps)
+                    .joinedload(Step.comments)
+                    .joinedload(StepComment.user),
+                joinedload(Project.steps)
+                    .joinedload(Step.comments)
+                    .joinedload(StepComment.files)
             )
         result = await self._db.execute(base_query)
         return result.unique().scalar_one_or_none()

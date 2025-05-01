@@ -4,16 +4,17 @@ import mimetypes
 from math import ceil
 from typing import Optional, Sequence
 
-from fastapi import HTTPException, UploadFile, status, BackgroundTasks
+from fastapi import BackgroundTasks, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
 from pydantic_core import ValidationError
 
-from projects.constants import ProjectStatus, PROJECT_FILES_MIME_TYPES
+from projects.constants import PROJECT_FILES_MIME_TYPES, ProjectStatus
 from projects.models import Project, Step, StepAttempt, StepComment, StepFile
 from projects.repositories import ProjectRepo, StepRepo
-from projects.schemas import ProjectInDB, ProjectCreate, ProjectUpdate
+from projects.schemas import ProjectCreate, ProjectInDB, ProjectUpdate
 from users.models import User
-from utils import create_field_map_for_model, parse_ordering, FileService, clean_errors, FileUploadResult
+from utils import (FileService, FileUploadResult, clean_errors,
+                   create_field_map_for_model, dict_to_text, parse_ordering)
 
 
 class ProjectService:
@@ -191,23 +192,36 @@ class ProjectService:
         )
 
     async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks):
-        project = await self._repo.get_by_id(project_id, join_steps=False, join_team=True)
+        project = await self._repo.get_by_id(project_id, join_steps=True, join_team=True, join_comments=True)
+        step_text = ''
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f'Project with ID {project_id} not found',
             )
-
         project_name = project.name
         if project.team:
             team_name = project.team.name
         else:
             team_name = 'Unknown team'
 
+        for step in project.steps:
+            step_text += dict_to_text(data={
+                'Текст шага': step.text,
+                'Очки': step.score,
+                'Время': step.timer_minutes,
+                'Статус': step.status,
+                'Комментарии': [{
+                    'Дата': datetime.datetime.strftime(comment.created_at, '%d.%m.%Y %H:%M:%S'),
+                    'Пользователь': f'{comment.user.last_name} {comment.user.first_name}',
+                    'Текст': comment.text,
+                    'Файлы к комментарию: ': [f'{file.name}' for file in comment.files]
+                } for comment in step.comments]},
+                pretext=f'Шаг {step.step_number}:\n'
+            ) + '\n'
         project_credits = f'Команда {team_name}. Проект {project_name}'
-        project_description = f'{project_credits}\n{project.description}'
-
-        folder_path = FileService.get_media_folder_path(project_id, is_project=True)
+        project_description = f'{project_credits}\n{project.description}\n\n{step_text}'
+        folder_path = FileService.get_media_folder_path(project_id=project_id, is_project=True)
         if not folder_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -652,3 +666,42 @@ class StepService:
             await FileService.delete_file_from_fs(full_path)
 
         await self._repo.delete_comment(comment_id=comment_id)
+
+    async def download_step_files(
+        self,
+        project_id: int,
+        step_num: int,
+        background_tasks: BackgroundTasks
+    ):
+        step = await self.get_step_or_404(project_id=project_id, step_num=step_num, join_comments=True)
+        folder_path = FileService.get_media_folder_path(project_id=project_id, step_id=step_num, is_step=True)
+        if not folder_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+        step_data = {
+            'Текст шага': step.text,
+            'Очки': step.score,
+            'Время': step.timer_minutes,
+            'Статус': step.status,
+            'Комментарии': [{
+                'Дата': datetime.datetime.strftime(comment.created_at, '%d.%m.%Y %H:%M:%S'),
+                'Пользователь': f'{comment.user.last_name} {comment.user.first_name}',
+                'Текст': comment.text,
+                'Файлы к комментарию: ': [f'{file.name}' for file in comment.files]
+            } for comment in step.comments]
+        }
+        file_text = dict_to_text(data=step_data, pretext=f'Шаг {step_num}:\r\n')
+
+        zip_path = await FileService.create_zip_from_directory(
+            folder_path=folder_path,
+            text=file_text,
+            file_name=f'Текст и комментарии шага {step_num}.txt'
+        )
+        background_tasks.add_task(FileService.delete_file_from_fs, zip_path)
+        return FileResponse(
+            path=zip_path,
+            media_type='application/zip',
+            filename=f'step_{step_num}_files.zip'
+        )

@@ -170,6 +170,58 @@ class ProjectService:
         await self._repo.delete(project_id)
         await FileService.delete_all_files_in_directory(['projects', str(project_id)])
 
+    async def download_file(self, project_id: int, document_name: str):
+        project = await self._repo.get_by_id(project_id, join_steps=False)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+        document_path = await FileService.get_doc_path(project_id, document_name, is_project=True)
+        if not document_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'File {document_name} not found in project {project_id}'
+            )
+        media_type, _ = mimetypes.guess_type(document_name)
+        return FileResponse(
+            path=document_path,
+            media_type=media_type or 'application/octet-stream',
+            filename=document_name
+        )
+
+    async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks):
+        project = await self._repo.get_by_id(project_id, join_steps=False, join_team=True)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+
+        project_name = project.name
+        if project.team:
+            team_name = project.team.name
+        else:
+            team_name = 'Unknown team'
+
+        project_credits = f'Команда {team_name}. Проект {project_name}'
+        project_description = f'{project_credits}\n{project.description}'
+
+        folder_path = FileService.get_media_folder_path(project_id, is_project=True)
+        if not folder_path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f'Project with ID {project_id} not found',
+            )
+
+        zip_path = await FileService.create_zip_from_directory(folder_path, project_description)
+        background_tasks.add_task(FileService.delete_file_from_fs, zip_path)
+        return FileResponse(
+            path=zip_path,
+            media_type='application/zip',
+            filename=f'{project_credits}.zip'
+        )
+
 
 class StepService:
     def __init__(self, repo: StepRepo):
@@ -600,51 +652,3 @@ class StepService:
             await FileService.delete_file_from_fs(full_path)
 
         await self._repo.delete_comment(comment_id=comment_id)
-
-    async def download_file(self, project_id: int, document_name: str):
-        project = await self._repo.get_by_id(project_id, join_steps=False)
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Project with ID {project_id} not found',
-            )
-        document_path = await FileService.get_doc_path(project_id, document_name, is_project=True)
-        if not document_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'File {document_name} not found in project {project_id}'
-            )
-        media_type, _ = mimetypes.guess_type(document_name)
-        return FileResponse(
-            path=document_path,
-            media_type=media_type or 'application/octet-stream',
-            filename=document_name
-        )
-
-    async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks):
-        project = await self._repo.get_by_id(project_id, join_steps=False, join_team=True)
-        if not project:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Project with ID {project_id} not found',
-            )
-
-        project_name = project.name
-        team_name = project.team.name
-        project_credits = f'Команда {team_name}. Проект {project_name}'
-        project_description = f'{project_credits}\n{project.description}'
-
-        folder_path = FileService.get_media_folder_path(project_id, is_project=True)
-        if not folder_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Project with ID {project_id} not found',
-            )
-
-        zip_path = await FileService.create_zip_from_directory(folder_path, project_description)
-        background_tasks.add_task(FileService.delete_file_from_fs, zip_path)
-        return FileResponse(
-            path=zip_path,
-            media_type='application/zip',
-            filename=f'{project_credits}.zip'
-        )

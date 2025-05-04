@@ -276,6 +276,14 @@ class FileService:
             zip_file.writestr(file_name, text)
         return zip_path
 
+    @staticmethod
+    async def create_response_file(text: str, file_name: str, path: Path | None = None) -> Path:
+        if path is None:
+            path = BASE_DIR / settings.MEDIA_DIR
+        file_path = path / file_name
+        file_path.write_text(text, encoding='utf-8')
+        return file_path
+
 
 def clean_errors(errors: list[dict]) -> list[dict]:
     for err in errors:
@@ -290,6 +298,8 @@ def dict_to_text(data: dict, pretext: str = '') -> str:
     """Converts a dictionary to a formatted text string."""
     text = pretext
     for key, value in data.items():
+        if value is None:
+            continue
         if isinstance(value, list):
             text += f"{key}:\n"
             for item in value:

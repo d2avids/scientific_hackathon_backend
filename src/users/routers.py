@@ -1,6 +1,7 @@
 from typing import Annotated, Optional, Union
 
 from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks
+from fastapi.responses import FileResponse
 
 from auth.services import get_current_user
 from openapi import AUTHENTICATION_RESPONSES, NOT_FOUND_RESPONSE
@@ -12,7 +13,6 @@ from users.openapi import (
     USER_UPDATE_SCHEMA,
     USER_UPDATE_RESPONSES,
     USER_DOCUMENTS_CREATE_RESPONSES,
-    USER_GET_RESPONSES,
     USER_VERIFY_RESPONSES,
 )
 from permissions import require_mentor, ensure_owner_or_admin, ensure_document_ownership, require_admin
@@ -63,24 +63,6 @@ async def get_user(
 ):
     """## Get current user. Any authenticated user is allowed."""
     return await service.get_by_id(current_user.id)
-
-
-@router.get(
-    '/users/{user_id}',
-    tags=[f'{USERS_PREFIX} Read'],
-    responses={
-        **AUTHENTICATION_RESPONSES,
-        **USER_GET_RESPONSES,
-    },
-    response_model=UserInDB
-)
-async def get_user(
-        user_id: int,
-        service: UserService = Depends(get_user_service),
-        current_user: User = Depends(get_current_user),
-):
-    """## Get user instance by user_id. Any authenticated user is allowed."""
-    return await service.get_by_id(user_id)
 
 
 @router.get(
@@ -189,25 +171,6 @@ async def verify_user(
 
 
 @router.delete(
-    '/users/{user_id}/verify',
-    tags=[f'{USERS_PREFIX} Update'],
-    responses={
-        **AUTHENTICATION_RESPONSES,
-        **USER_VERIFY_RESPONSES,
-    },
-    status_code=status.HTTP_204_NO_CONTENT
-)
-async def verify_user(
-        user_id: int,
-        background_tasks: BackgroundTasks,
-        service: UserService = Depends(get_user_service),
-        current_user: User = Depends(require_admin),
-):
-    """## Decline user's registration. Deletes user's instance. Only admins are allowed."""
-    await service.decline_registration(user_id, background_tasks)
-
-
-@router.delete(
     '/users/{user_id}',
     tags=[f'{USERS_PREFIX} Delete'],
     responses={
@@ -286,3 +249,21 @@ async def delete_document(
 ):
     """## Delete document by id. Only admin or document's owner are allowed."""
     await service.delete(document_id, document)
+
+
+@router.get(
+    '/users/download_users_info',
+    tags=[f'{USERS_PREFIX} Read'],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE
+    },
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK
+)
+async def download_users_info(
+    background_tasks: BackgroundTasks,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(require_mentor),
+):
+    return await service.download_users_info(background_tasks)

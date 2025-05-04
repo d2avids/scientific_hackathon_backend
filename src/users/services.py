@@ -1,19 +1,24 @@
 import json
+import os
 from math import ceil
-from typing import Optional
+from typing import Optional, Sequence
+
+from fastapi import BackgroundTasks, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
+from pydantic_core import ValidationError
+from sqlalchemy.exc import IntegrityError
 
 from auth.config import PasswordEncryption
-from fastapi import status, HTTPException, UploadFile, BackgroundTasks
-from pydantic_core import ValidationError
-
-from constants import REJECTED_REGISTRATION_EMAIL_SUBJECT, REJECTED_REGISTRATION_EMAIL_MESSAGE, \
-    SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE, SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT
-from settings import settings
-from sqlalchemy.exc import IntegrityError
+from constants import (REJECTED_REGISTRATION_EMAIL_MESSAGE,
+                       REJECTED_REGISTRATION_EMAIL_SUBJECT,
+                       SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE,
+                       SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT)
 from users.models import User, UserDocument
-from users.repositories import UserRepo, UserDocumentRepo, RegionRepo
-from users.schemas import UserCreate, UserInDB, MentorInDB, ParticipantInDB, UserDocumentInDB, UserUpdate, RegionInDB
-from utils import clean_errors, parse_ordering, create_field_map_for_model, FileService, send_mail
+from users.repositories import RegionRepo, UserDocumentRepo, UserRepo
+from users.schemas import (MentorInDB, ParticipantInDB, RegionInDB, UserCreate,
+                           UserDocumentInDB, UserInDB, UserUpdate)
+from utils import (FileService, clean_errors, create_field_map_for_model,
+                   dict_to_text, parse_ordering, send_mail)
 
 
 class UserService:
@@ -245,6 +250,56 @@ class UserService:
         )
         await FileService.delete_all_files_in_directory(
             ['photos', str(user_id)]
+        )
+
+    async def download_users_info(self, background_tasks: BackgroundTasks) -> FileResponse:
+
+        FILE_NAME = 'users.txt'
+        txt_data: str = ''
+        users_data: Sequence[User] = []
+        users_data, _ = await self._repo.get_all(
+            team_members_join=True,
+            participant_join=True,
+            mentor_join=True,
+            region_join=True,
+            team_join=True,
+        )
+        for user_data in users_data:
+            txt_data += f'Пользователь с ID {user_data.id}:\n' + dict_to_text(
+                {
+                    'ФИО': f'{user_data.last_name} {user_data.patronymic} {user_data.first_name}',
+                    'День рождения': f'{user_data.birth_date}',
+                    'Email': f'{user_data.email}',
+                    'Номер телефона': f'{user_data.phone_number}',
+                    'Образовательная организация': f'{user_data.edu_organization}',
+                    'Верификация': 'Верифицирован' if user_data.verified else 'Не верифицирован',
+                    'О себе': f'{user_data.about}',
+                    'Тип пользователя': 'Участник' if user_data.participant else 'Ментор',
+                    'Регион': f'{user_data.participant.region.name}' if user_data.participant else None,
+                    'Класс': f'{user_data.participant.school_grade}' if user_data.participant else None,
+                    'Город': f'{user_data.participant.city}' if user_data.participant else None,
+                    'Интересы': f'{user_data.participant.interests}' if user_data.participant else None,
+                    'Олимпиады': f'{user_data.participant.olympics}' if user_data.participant else None,
+                    'Достижения': f'{user_data.participant.achievements}' if user_data.participant else None,
+                    'Направление': f'{user_data.mentor.specialization}' if user_data.mentor else None,
+                    'Должность': f'{user_data.mentor.job_title}' if user_data.mentor else None,
+                    'Статьи': f'{user_data.mentor.articles}' if user_data.mentor else None,
+                    'Научные интересы': f'{user_data.mentor.scientific_interests}' if user_data.mentor else None,
+                    'Преподаваемые предметы': f'{user_data.mentor.taught_subjects}' if user_data.mentor else None,
+                    'Тематика НИР': f'{user_data.mentor.research_topics}' if user_data.mentor else None,
+                }
+            ) + '\n'
+        file_path = await FileService.create_response_file(
+            text=txt_data,
+            file_name=FILE_NAME
+        )
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"Файл не найден: {file_path}")
+        background_tasks.add_task(FileService.delete_file_from_fs, file_path)
+        return FileResponse(
+            path=str(file_path),
+            filename=FILE_NAME,
+            media_type='text/plain'
         )
 
 

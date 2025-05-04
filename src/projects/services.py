@@ -191,7 +191,7 @@ class ProjectService:
             filename=document_name
         )
 
-    async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks):
+    async def download_all_files(self, project_id: int, background_tasks: BackgroundTasks) -> FileResponse:
         project = await self._repo.get_by_id(project_id, join_steps=True, join_team=True, join_comments=True)
         step_text = ''
         if not project:
@@ -215,7 +215,7 @@ class ProjectService:
                     'Дата': datetime.datetime.strftime(comment.created_at, '%d.%m.%Y %H:%M:%S'),
                     'Пользователь': f'{comment.user.last_name} {comment.user.first_name}',
                     'Текст': comment.text,
-                    'Файлы к комментарию: ': [f'{file.name}' for file in comment.files]
+                    'Файлы к комментарию': [f'{file.name}' for file in comment.files]
                 } for comment in step.comments]},
                 pretext=f'Шаг {step.step_number}:\n'
             ) + '\n'
@@ -672,7 +672,7 @@ class StepService:
         project_id: int,
         step_num: int,
         background_tasks: BackgroundTasks
-    ):
+    ) -> FileResponse:
         step = await self.get_step_or_404(project_id=project_id, step_num=step_num, join_comments=True)
         folder_path = FileService.get_media_folder_path(project_id=project_id, step_id=step_num, is_step=True)
         if not folder_path.exists():

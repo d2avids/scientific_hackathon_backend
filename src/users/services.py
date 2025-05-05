@@ -2,14 +2,17 @@ import json
 from math import ceil
 from typing import Optional
 
-from auth.config import PasswordEncryption
 from fastapi import status, HTTPException, UploadFile, BackgroundTasks
 from pydantic_core import ValidationError
-
-from constants import REJECTED_REGISTRATION_EMAIL_SUBJECT, REJECTED_REGISTRATION_EMAIL_MESSAGE, \
-    SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE, SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT
-from settings import settings
 from sqlalchemy.exc import IntegrityError
+
+from auth.config import PasswordEncryption
+from constants import (
+    REJECTED_REGISTRATION_EMAIL_SUBJECT,
+    REJECTED_REGISTRATION_EMAIL_MESSAGE,
+    SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE,
+    SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT
+)
 from users.models import User, UserDocument
 from users.repositories import UserRepo, UserDocumentRepo, RegionRepo
 from users.schemas import UserCreate, UserInDB, MentorInDB, ParticipantInDB, UserDocumentInDB, UserUpdate, RegionInDB

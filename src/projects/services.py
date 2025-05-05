@@ -337,9 +337,15 @@ class StepService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Step not found'
             )
-        if user:
+        if user and not user.is_mentor:
+            if not step.project.team:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail='You are not authorized to access this step'
+                )
+
             team_member_participant_ids = {member.participant_id for member in step.project.team.team_members}
-            if not user.is_mentor and (not user.participant or user.participant.id not in team_member_participant_ids):
+            if not user.participant or user.participant.id not in team_member_participant_ids:
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail='You are not authorized to access this step'

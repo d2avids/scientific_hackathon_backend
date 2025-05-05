@@ -30,7 +30,7 @@ async def require_admin(current_user: User = Depends(get_current_user)) -> User:
 
 
 async def ensure_owner_or_admin(user_id: int, current_user: User = Depends(get_current_user)) -> User:
-    if current_user.id == user_id and not current_user.is_mentor:
+    if current_user.id == user_id:
         return current_user
     if current_user.is_mentor:
         if current_user.mentor.is_admin:

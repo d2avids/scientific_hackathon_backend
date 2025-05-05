@@ -119,11 +119,11 @@ class Mentor(CreatedUpdatedAt, Base):
     )
 
     # required fields
-    specialization: Mapped[str] = mapped_column(String(250), nullable=False)
     job_title: Mapped[str] = mapped_column(String(150), nullable=False)
     is_admin: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # non-required fields
+    specialization: Mapped[Optional[str]] = mapped_column(String(250), nullable=True)
     research_topics: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     articles: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     scientific_interests: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)

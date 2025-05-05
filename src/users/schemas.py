@@ -39,15 +39,6 @@ class ParticipantBase(ConfiguredModel):
 
 
 class MentorBase(ConfiguredModel):
-    specialization: Annotated[
-        str,
-        Field(
-            ...,
-            title='Specialization',
-            description='The mentor\'s area of specialization.',
-            max_length=250,
-        )
-    ]
     job_title: Annotated[
         str,
         Field(
@@ -128,11 +119,12 @@ class MentorUpdate(MentorBase):
         Field(
             default=None,
             title='Specialization',
-            description='The mentor\'s area of specialization.'
+            description='The mentor\'s area of specialization.',
+            max_length=250,
         )
     ]
     job_title: Annotated[
-        Optional[str],
+        str,
         Field(
             default=None,
             title='Job Title',

@@ -413,7 +413,7 @@ async def download_file(
 
 
 @router.get(
-    '/{projects_id}/all_files',
+    '/{project_id}/all_files',
     tags=[PROJECT_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,
@@ -423,7 +423,7 @@ async def download_file(
     status_code=status.HTTP_200_OK
 )
 async def download_all_files(
-        projects_id: int,
+        project_id: int,
         background_tasks: BackgroundTasks,
         service: ProjectService = Depends(get_project_service),
         current_user: User = Depends(require_mentor)
@@ -435,4 +435,31 @@ async def download_all_files(
     Returns:
         FileResponse: File response with all files from the project
     """
-    return await service.download_all_files(projects_id, background_tasks)
+    return await service.download_all_files(project_id, background_tasks)
+
+@router.get(
+    '/{project_id}/steps/{step_num}/download_step_files',
+    tags=[STEPS_TAG],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE,
+    },
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK
+)
+async def download_step_files(
+        project_id: int,
+        step_num: Annotated[int, Path(gt=0, lt=16)],
+        background_tasks: BackgroundTasks,
+        service: StepService = Depends(get_step_service),
+        current_user: User = Depends(require_mentor)
+):
+    """
+    ## Download all files from a step. Mentor rights required
+    Args:
+        project_id: int - ID of the project
+        step_num: int - Number of the step
+    Returns:
+        FileResponse: File response with zip file from the step
+    """
+    return await service.download_step_files(project_id, step_num, background_tasks)

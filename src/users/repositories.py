@@ -1,11 +1,13 @@
-from typing import Optional, Sequence, Literal
+from typing import Literal, Optional, Sequence
 
-from exceptions import NotFoundError
-from sqlalchemy import func, select, delete, or_, asc, desc
+from sqlalchemy import asc, delete, desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
-from users.models import User, Participant, Mentor, UserDocument, Region
-from users.schemas import UserCreate, ParticipantCreate, MentorCreate
+
+from exceptions import NotFoundError
+from teams.models import TeamMember
+from users.models import Mentor, Participant, Region, User, UserDocument
+from users.schemas import MentorCreate, ParticipantCreate, UserCreate
 
 
 class UserRepo:
@@ -21,6 +23,11 @@ class UserRepo:
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
+            team_members_join: bool = False,
+            participant_join: bool = False,
+            mentor_join: bool = False,
+            region_join: bool = False,
+            team_join: bool = False,
     ) -> tuple[Sequence[User], int]:
         base_query = select(User)
 
@@ -52,11 +59,25 @@ class UserRepo:
                 base_query = base_query.order_by(asc(column))
             else:
                 base_query = base_query.order_by(desc(column))
-
-        base_query = base_query.options(
-            joinedload(User.mentor),
-            joinedload(User.participant)
-        ).offset(offset).limit(limit)
+        if participant_join:
+            base_query = base_query.options(joinedload(User.participant))
+        if mentor_join:
+            base_query = base_query.options(joinedload(User.mentor))
+        if region_join:
+            base_query = base_query.options(
+                joinedload(User.participant).joinedload(Participant.region)
+            )
+        if team_join:
+            base_query = base_query.options(
+                joinedload(
+                    User.participant
+                ).joinedload(
+                    Participant.team_members
+                ).joinedload(
+                    TeamMember.team
+                )
+            )
+        base_query = base_query.offset(offset).limit(limit)
 
         result = await self._db.execute(base_query)
         users_list = result.scalars().all()

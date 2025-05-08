@@ -8,6 +8,7 @@ from fastapi import (
 from pydantic import EmailStr
 
 from auth.config import TokenType, JWT
+from auth.dependencies import get_reset_code_service
 from auth.openapi import (
     LOGIN_RESPONSES,
     REFRESH_TOKEN_RESPONSES,
@@ -25,8 +26,9 @@ from auth.services import (
     get_token_response,
     get_current_user,
     change_password_service,
-    reset_password_service,
-    reset_password_callback_service
+    send_password_reset_code,
+    receive_password_reset_code,
+    ResetCodeService
 )
 from users.dependencies import get_user_repo
 from users.models import User
@@ -86,8 +88,9 @@ async def change_password(
 )
 async def reset_password(
         background_tasks: BackgroundTasks,
-        email: EmailStr = Body(..., embed=True, title='Email'),
+        email: EmailStr = Body(..., title='Email'),
         user_repo: UserRepo = Depends(get_user_repo),
+        service: ResetCodeService = Depends(get_reset_code_service),
 ):
     """
     ## Starts the password reset process.
@@ -101,7 +104,12 @@ async def reset_password(
     they can be used on client's side to verify and complete the reset process
     using `/reset-password/set-password` endpoint.
     """
-    await reset_password_service(email, background_tasks, user_repo)
+    await send_password_reset_code(
+        email=email,
+        background_tasks=background_tasks,
+        user_repo=user_repo,
+        reset_code_service=service
+    )
 
 
 @router.post(
@@ -113,9 +121,16 @@ async def reset_password_callback(
         password: NewPasswordInput,
         user_id: int = Body(..., title='User ID from email'),
         token: str = Body(..., title='One-time password reset token from email'),
+        service: ResetCodeService = Depends(get_reset_code_service),
         user_repo: UserRepo = Depends(get_user_repo),
 ):
     """
     ## Completes the password reset process by validating the token and updating the user's password.
     """
-    await reset_password_callback_service(password.new_password, user_id, token, user_repo)
+    await receive_password_reset_code(
+        password=password.new_password,
+        user_id=user_id,
+        token=token,
+        user_repo=user_repo,
+        reset_code_service=service
+    )

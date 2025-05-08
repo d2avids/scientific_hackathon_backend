@@ -1,10 +1,14 @@
-from typing import Union
+import datetime as dt
+import secrets
+import string
+from typing import Union, Optional
 
 from fastapi import status, HTTPException, Depends, Body, BackgroundTasks
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES, ResetCodeStorage
+from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_MINUTES
 from auth.config import PasswordEncryption, TokenType, JWT
+from auth.repositories import ResetCodeRepository
 from auth.schemas import TokenOut
 from constants import RESET_PASSWORD_EMAIL_SUBJECT, RESET_PASSWORD_EMAIL_MESSAGE
 from settings import settings
@@ -103,19 +107,47 @@ async def change_password_service(
     )
 
 
-async def reset_password_service(
+class ResetCodeService:
+    def __init__(self, repo: ResetCodeRepository):
+        self._repo = repo
+
+    async def get_code(self, user_id: int) -> Optional[str]:
+        entry = await self._repo.get(user_id=user_id)
+        if not entry:
+            return None
+        if dt.datetime.now(dt.UTC) > entry.expiration:
+            await self._repo.delete(entry.id)
+            return None
+        return entry.code
+
+    async def create(self, user_id: int, ttl: int = settings.auth.RESET_PASSWORD_CODE_TTL) -> str:
+        expiration = dt.datetime.now(dt.UTC) + dt.timedelta(seconds=ttl)
+        alphabet = string.ascii_letters + string.digits
+        while True:
+            code = ''.join(secrets.choice(alphabet) for _ in range(64))
+            if (any(c.islower() for c in code)
+                    and any(c.isupper() for c in code)
+                    and sum(c.isdigit() for c in code) >= 3):
+                break
+        await self._repo.insert(user_id=user_id, code=code, expiration=expiration)
+        return code
+
+
+async def send_password_reset_code(
+        *,
         email: str,
         background_tasks: BackgroundTasks,
         user_repo: UserRepo = Depends(get_user_repo),
+        reset_code_service: ResetCodeService,
 ):
     user = await user_repo.get_by_email(email)
     if not user or not user.verified:
         return
 
-    token = ResetCodeStorage.add_code(str(user.id))
+    token = await reset_code_service.create(user_id=user.id)
 
     reset_link = f'{settings.auth.FRONTEND_RESET_PASSWORD_CALLBACK_URL}?user_id={user.id}&token={token}'
-
+    print(f'{reset_link=}')
     background_tasks.add_task(
         send_mail,
         to_email=user.email,
@@ -124,13 +156,16 @@ async def reset_password_service(
     )  # type: ignore
 
 
-async def reset_password_callback_service(
+async def receive_password_reset_code(
+        *,
         password: str,
         user_id: int,
         token: str,
         user_repo: UserRepo,
+        reset_code_service: ResetCodeService,
 ):
-    if ResetCodeStorage.get_code(str(user_id)) != token:
+    code = await reset_code_service.get_code(user_id=user_id)
+    if code and code != token:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail='Invalid or expired token.'

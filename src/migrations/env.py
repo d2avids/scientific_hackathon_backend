@@ -11,6 +11,7 @@ from database import Base
 from users.models import User, Region, Participant, Mentor, UserDocument
 from projects.models import Project, Step
 from teams.models import Team, TeamMember
+from auth.models import ResetCode
 from settings import settings
 
 __all__ = [
@@ -23,7 +24,8 @@ __all__ = [
     'Project',
     'Step',
     'Team',
-    'TeamMember'
+    'TeamMember',
+    'ResetCode'
 ]
 
 # this is the Alembic Config object, which provides

@@ -209,7 +209,7 @@ async def modify_step_attempt_state(
         step_num: Annotated[int, Path(gt=0, lt=16)],
         data: Annotated[StepModify, Body()],
         service: StepService = Depends(get_step_service),
-        # current_user: User = Depends(require_mentor),
+        current_user: User = Depends(require_mentor),
 ):
     """## Modify last step attempt's state. Mentor rights required
 

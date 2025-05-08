@@ -2,9 +2,10 @@ from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import urljoin
 
-from pydantic import Field, field_serializer, model_validator
+from pydantic import Field, field_serializer, model_validator, computed_field
 
 from projects.constants import MODIFY_STEP_ACTIONS
+from projects.models import Project
 from schemas import ConfiguredModel, IDModel
 from settings import settings
 from users.schemas import ShortUserInDB
@@ -30,6 +31,10 @@ class ProjectBase(ConfiguredModel):
 
 
 class ProjectInDB(ProjectBase, IDModel):
+    team_id: Annotated[
+        Optional[int],
+        Field(title='Team id'),
+    ]
     document_path: Annotated[
         str,
         Field(
@@ -72,6 +77,17 @@ class ProjectInDB(ProjectBase, IDModel):
         if document_path is None:
             return None
         return urljoin(settings.SERVER_URL, document_path)
+
+    @model_validator(mode='before')
+    @classmethod
+    def inject_team_id(cls, data):
+
+        if isinstance(data, Project):
+            return {
+                **data.__dict__,
+                'team_id': data.team.id if data.team else None,
+            }
+        return data
 
 
 class ProjectWithStepsInDB(ProjectInDB):

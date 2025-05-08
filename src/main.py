@@ -1,3 +1,5 @@
+import asyncio
+import sys
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import ORJSONResponse
@@ -8,6 +10,11 @@ from projects.routers import router as project_router_v1
 from settings import settings
 from teams.routers import router as team_router_v1
 from users.routers import router as user_router_v1
+
+if sys.platform != 'win32':
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+
 
 app = FastAPI(
     debug=settings.DEBUG,

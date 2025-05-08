@@ -252,7 +252,7 @@ async def delete_document(
 
 
 @router.get(
-    '/users/download_users_info',
+    '/users/info-file',
     tags=[f'{USERS_PREFIX} Read'],
     responses={
         **AUTHENTICATION_RESPONSES,

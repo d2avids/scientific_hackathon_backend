@@ -1,4 +1,5 @@
 from enum import Enum
+from typing import Literal
 
 
 class ProjectStatus(str, Enum):
@@ -49,3 +50,5 @@ PROJECT_FILES_MIME_TYPES = [
     "application/postscript",  # AI, EPS
     "model/stl"  # STL
 ]
+
+MODIFY_STEP_ACTIONS = Literal['set-timer', 'accept', 'reject']

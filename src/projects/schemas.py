@@ -4,6 +4,7 @@ from urllib.parse import urljoin
 
 from pydantic import Field, field_serializer, model_validator
 
+from projects.constants import MODIFY_STEP_ACTIONS
 from schemas import ConfiguredModel, IDModel
 from settings import settings
 from users.schemas import ShortUserInDB
@@ -155,3 +156,17 @@ class StepWithRelations(StepInDB):
     attempts: Annotated[list[StepAttemptInDB], Field(default_factory=list)]
     files: Annotated[list[FileInDB], Field(default_factory=list)]
     comments: Annotated[list[StepCommentInDB], Field(default_factory=list)]
+
+
+class StepModify(ConfiguredModel):
+    action: Annotated[MODIFY_STEP_ACTIONS, Field(None, title='Action')]
+    timer: Annotated[Optional[int], Field(None, title='New timer value', gt=0, description='Timer value in minutes')]
+    score: Annotated[Optional[int], Field(None, title='Score value', gt=0, lt=11)]
+
+    @model_validator(mode='after')
+    def validate_action(self):
+        if self.action == 'set-timer' and self.timer is None:
+            raise ValueError('timer should be provided when setting timer')
+        if self.action == 'accept' and self.score is None:
+            raise ValueError('score should be provided when accepting the attempt')
+        return self

@@ -191,8 +191,8 @@ async def add_team_members(
     return await service.create_several_team_members(team_id, members)
 
 
-@router.post(
-    '/teams/{team_id}/members/{team_member_id}/role_name',
+@router.patch(
+    '/teams/{team_id}/members/{team_member_id}/role-name',
     tags=[TEAMS_PREFIX],
     response_model=TeamMemberInDB,
     responses={

@@ -61,7 +61,7 @@ PROJECT_CREATE_RESPONSES: ResponseDict = {
     },
 }
 
-STEP_START_RESPONSES: ResponseDict = {
+STEP_START_ATTEMPT_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
         'description': 'Invalid JSON in project_data field or data string must be a valid JSON.',
         'content': {
@@ -85,7 +85,7 @@ STEP_START_RESPONSES: ResponseDict = {
     },
 }
 
-STEP_SUBMIT_RESPONSES: ResponseDict = {
+STEP_SUBMIT_ATTEMPT_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
         'description': 'Cannot submit the step due to its current state',
         'content': {
@@ -104,32 +104,14 @@ STEP_SUBMIT_RESPONSES: ResponseDict = {
     **FILE_UPLOAD_RELATED_RESPONSES
 }
 
-STEP_ACCEPT_RESPONSES: ResponseDict = {
+MODIFY_STEP_ATTEMPT_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
-        'description': 'Cannot accept the step due to its current state',
+        'description': 'Cannot accept or reject the step due to its current state',
         'content': {
             'application/json': {
                 'examples': {
                     'step_not_submitted': {
-                        'summary': 'Attempt to accept a step that has not been submitted',
-                        'value': {
-                            'detail': 'Step has not been submitted',
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-STEP_REJECT_RESPONSES: ResponseDict = {
-    status.HTTP_409_CONFLICT: {
-        'description': 'Cannot reject the step due to its current state',
-        'content': {
-            'application/json': {
-                'examples': {
-                    'step_not_submitted': {
-                        'summary': 'Attempt to reject a step that has not been submitted',
+                        'summary': 'Attempt to accept or reject a step that has not been submitted',
                         'value': {
                             'detail': 'Step has not been submitted',
                         }

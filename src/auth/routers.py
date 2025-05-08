@@ -36,11 +36,11 @@ router = APIRouter(prefix='/auth', tags=['Auth'])
 
 
 @router.post(
-    '/login',
+    '/token',
     responses=LOGIN_RESPONSES,
     response_model=TokenOut
 )
-async def login(
+async def token(
         email: EmailStr = Body(..., title='Email'),
         password: str = Body(..., title='Password'),
         token_response: TokenOut = Depends(login),
@@ -49,7 +49,7 @@ async def login(
 
 
 @router.post(
-    '/refresh',
+    '/token/refresh',
     responses=REFRESH_TOKEN_RESPONSES,
     response_model=TokenOut
 )
@@ -62,8 +62,8 @@ async def refresh_token(refresh_token_input: RefreshTokenInput):
     return token_response
 
 
-@router.post(
-    '/change-password',
+@router.put(
+    '/passwords',
     responses=CHANGE_PASSWORD_RESPONSES,
     status_code=status.HTTP_204_NO_CONTENT
 )
@@ -81,7 +81,7 @@ async def change_password(
 
 
 @router.post(
-    '/reset-password',
+    '/password-resets',
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def reset_password(
@@ -105,7 +105,7 @@ async def reset_password(
 
 
 @router.post(
-    '/reset-password/set-password',
+    '/password-resets/callback',
     status_code=status.HTTP_204_NO_CONTENT,
     responses=RESET_PASSWORD_CALLBACK_RESPONSES
 )

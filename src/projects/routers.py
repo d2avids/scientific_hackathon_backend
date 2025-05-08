@@ -11,13 +11,12 @@ from projects.dependencies import get_project_service, get_step_service
 from projects.openapi import (
     PROJECT_CREATE_RESPONSES,
     PROJECT_CREATE_UPDATE_SCHEMA,
-    STEP_START_RESPONSES,
-    STEP_SUBMIT_RESPONSES,
-    STEP_ACCEPT_RESPONSES,
-    STEP_REJECT_RESPONSES,
-    COMMENT_CREATE_RESPONSES
+    STEP_START_ATTEMPT_RESPONSES,
+    STEP_SUBMIT_ATTEMPT_RESPONSES,
+    COMMENT_CREATE_RESPONSES,
+    MODIFY_STEP_ATTEMPT_RESPONSES
 )
-from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB
+from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB, StepModify
 from projects.services import ProjectService, StepService
 from users.models import User
 
@@ -171,16 +170,16 @@ async def get_step(
 
 
 @router.post(
-    '/{project_id}/steps/{step_num}/start',
+    '/{project_id}/steps/{step_num}/attempts',
     tags=[STEPS_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE,
-        **STEP_START_RESPONSES,
+        **STEP_START_ATTEMPT_RESPONSES,
     },
     response_model=StepWithRelations
 )
-async def start_step(
+async def start_step_attempt(
         project_id: int,
         step_num: Annotated[int, Path(gt=0, lt=16)],
         service: StepService = Depends(get_step_service),
@@ -195,52 +194,71 @@ async def start_step(
     return StepWithRelations.model_validate(step)
 
 
-@router.post(
-    '/{project_id}/steps/{step_num}/set-timer',
+@router.patch(
+    '/{project_id}/steps/{step_num}/attempts',
     tags=[STEPS_TAG],
     responses={
+        **MODIFY_STEP_ATTEMPT_RESPONSES,
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE,
     },
-    response_model=StepWithRelations
+    response_model=StepWithRelations,
 )
-async def set_timer(
+async def modify_step_attempt_state(
         project_id: int,
         step_num: Annotated[int, Path(gt=0, lt=16)],
-        timer: Annotated[int, Body(gt=0, embed=True, description='Timer value in minutes')],
+        data: Annotated[StepModify, Body()],
         service: StepService = Depends(get_step_service),
-        current_user: User = Depends(require_mentor),
+        # current_user: User = Depends(require_mentor),
 ):
-    """## Set new timer value. Mentor rights required
+    """## Modify last step attempt's state. Mentor rights required
 
-    Updates the last StepAttempt instance's endTimeAt value if the work on this step is in progress.
+    Action `set-timer` sets new timer value for last or following attempt;\n
+    Action `accept` accepts last submission and sets the score earned this attempt;\n
+    Action `reject` rejects last submission and sets new timer value if necessary.
     """
-    step = await service.set_step_timer(
-        project_id=project_id,
-        step_num=step_num,
-        timer=timer
-    )
+    match data.action:
+        case 'set-timer':
+            step = await service.set_step_timer(
+                project_id=project_id,
+                step_num=step_num,
+                timer=data.timer
+            )
+        case 'accept':
+            step = await service.accept_step(
+                project_id=project_id,
+                step_num=step_num,
+                score=data.score
+            )
+        case 'reject':
+            step = await service.reject_step(
+                project_id=project_id,
+                step_num=step_num,
+                timer=data.timer
+            )
+        case _:
+            raise NotImplementedError
     return StepWithRelations.model_validate(step)
 
 
 @router.post(
-    '/{project_id}/steps/{step_num}/submit_step',
+    '/{project_id}/steps/{step_num}/attempts/submission',
     tags=[STEPS_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE,
         **FILE_UPLOAD_RELATED_RESPONSES,
-        **STEP_SUBMIT_RESPONSES
+        **STEP_SUBMIT_ATTEMPT_RESPONSES
     },
     response_model=StepWithRelations
 )
-async def submit_step(
+async def submit_step_attempt(
         project_id: int,
         step_num: Annotated[int, Path(gt=0, lt=16)],
         text: Annotated[str, Form(..., max_length=10000)],
         files: Annotated[list[UploadFile], File()] = None,
         service: StepService = Depends(get_step_service),
-        user_and_team_id: [User, int] = Depends(ensure_team_captain),
+        user_and_team_ids: [User, int] = Depends(ensure_team_captain),
 ):
     """## Submit the work on the step. Team captain role required"""
     step = await service.submit_step(
@@ -248,59 +266,7 @@ async def submit_step(
         step_num=step_num,
         text=text,
         files=files if files else [],
-        user_team_id=user_and_team_id[1],
-    )
-    return StepWithRelations.model_validate(step)
-
-
-@router.post(
-    '/{project_id}/steps/{step_num}/accept',
-    tags=[STEPS_TAG],
-    responses={
-        **AUTHENTICATION_RESPONSES,
-        **NOT_FOUND_RESPONSE,
-        **STEP_ACCEPT_RESPONSES
-    },
-    response_model=StepWithRelations
-)
-async def accept_step(
-        project_id: int,
-        step_num: Annotated[int, Path(gt=0, lt=16)],
-        score: Annotated[int, Body(gt=0, lt=11, embed=True)],
-        service: StepService = Depends(get_step_service),
-        current_user: User = Depends(require_mentor),
-):
-    """## Accept the work on the step, set score value. Mentor rights required"""
-    result = await service.accept_step(
-        project_id=project_id,
-        step_num=step_num,
-        score=score
-    )
-    return StepWithRelations.model_validate(result)
-
-
-@router.post(
-    '/{project_id}/steps/{step_num}/reject',
-    tags=[STEPS_TAG],
-    responses={
-        **AUTHENTICATION_RESPONSES,
-        **NOT_FOUND_RESPONSE,
-        **STEP_REJECT_RESPONSES,
-    },
-    response_model=StepWithRelations
-)
-async def reject_step(
-        project_id: int,
-        step_num: Annotated[int, Path(gt=0, lt=16)],
-        timer: Annotated[Optional[int], Body(gt=0, embed=True, description='Timer value in minutes')] = None,
-        service: StepService = Depends(get_step_service),
-        current_user: User = Depends(require_mentor),
-):
-    """## Reject the work on the step. Mentor rights required"""
-    step = await service.reject_step(
-        project_id=project_id,
-        step_num=step_num,
-        timer=timer
+        user_team_id=user_and_team_ids[1],
     )
     return StepWithRelations.model_validate(step)
 
@@ -402,18 +368,12 @@ async def download_file(
         current_user: User = Depends(require_mentor)
 ):
     """
-    ## Download a specific file from a project. Mentor rights required
-    Args:
-        project_id: int - ID of the project
-        document_name: str - Name of the document to download
-    Returns:
-        FileResponse: File response with the requested document
-    """
+    ## Download a specific file from a project. Mentor rights required"""
     return await service.download_file(project_id, document_name)
 
 
 @router.get(
-    '/{project_id}/all_files',
+    '/{project_id}/all-files',
     tags=[PROJECT_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,
@@ -428,17 +388,12 @@ async def download_all_files(
         service: ProjectService = Depends(get_project_service),
         current_user: User = Depends(require_mentor)
 ):
-    """
-    ## Download all files from a project. Mentor rights required
-    Args:
-        projects_id: int - ID of the project
-    Returns:
-        FileResponse: File response with all files from the project
-    """
+    """## Download all files from a project. Mentor rights required"""
     return await service.download_all_files(project_id, background_tasks)
 
+
 @router.get(
-    '/{project_id}/steps/{step_num}/download_step_files',
+    '/{project_id}/steps/{step_num}/step-files',
     tags=[STEPS_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,
@@ -454,12 +409,5 @@ async def download_step_files(
         service: StepService = Depends(get_step_service),
         current_user: User = Depends(require_mentor)
 ):
-    """
-    ## Download all files from a step. Mentor rights required
-    Args:
-        project_id: int - ID of the project
-        step_num: int - Number of the step
-    Returns:
-        FileResponse: File response with zip file from the step
-    """
+    """## Download all files from a step. Mentor rights required"""
     return await service.download_step_files(project_id, step_num, background_tasks)

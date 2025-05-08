@@ -41,7 +41,7 @@ class ProjectService:
             self,
             project_id: int,
     ) -> Project:
-        project = await self._repo.get_by_id(project_id, join_steps=True)
+        project = await self._repo.get_by_id(project_id, join_steps=True, join_team=True)
         if not project:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,

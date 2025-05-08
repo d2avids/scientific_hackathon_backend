@@ -25,4 +25,4 @@ RUN poetry install && rm -rf $POETRY_CACHE_DIR
 
 EXPOSE ${BACKEND_PORT}
 
-CMD sh -c "poetry run uvicorn main:app --host 0.0.0.0 --port ${BACKEND_PORT}"
+CMD sh -c "poetry run uvicorn main:app --workers ${BACKEND_WORKERS_NUMBER} --host 0.0.0.0 --port ${BACKEND_PORT}"

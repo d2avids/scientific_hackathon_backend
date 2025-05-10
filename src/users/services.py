@@ -44,7 +44,9 @@ class UserService:
             order_column=order_column,
             order_direction=order_direction,
             offset=offset,
-            limit=limit
+            limit=limit,
+            mentor_join=True,
+            participant_join=True
         )
 
         users_in_db = [UserInDB.model_validate(u) for u in entities]

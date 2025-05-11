@@ -1,6 +1,6 @@
 from typing import Annotated, Optional, Union
 
-from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks
+from fastapi import status, APIRouter, Query, Depends, Form, UploadFile, File, BackgroundTasks, Path
 from fastapi.responses import FileResponse
 
 from auth.services import get_current_user
@@ -57,12 +57,30 @@ async def get_regions(
     responses={**AUTHENTICATION_RESPONSES, },
     response_model=UserInDB
 )
-async def get_user(
+async def get_current_user(
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(get_current_user),
 ):
     """## Get current user. Any authenticated user is allowed."""
     return await service.get_by_id(current_user.id)
+
+
+@router.get(
+    '/users/{user_id}',
+    tags=[f'{USERS_PREFIX} Read'],
+    responses={**AUTHENTICATION_RESPONSES, **NOT_FOUND_RESPONSE},
+    response_model=UserInDB
+)
+async def get_user(
+        user_id: Annotated[int, Path(
+            title='User ID',
+            gt=0
+        )],
+        service: UserService = Depends(get_user_service),
+        current_user: User = Depends(require_mentor),
+):
+    """## Get current user. Any authenticated user is allowed."""
+    return await service.get_by_id(user_id)
 
 
 @router.get(

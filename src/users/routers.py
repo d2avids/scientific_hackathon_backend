@@ -170,7 +170,7 @@ async def update_user(
 
 
 @router.post(
-    '/users/{user_id}/verify',
+    '/users/{user_id}/verification',
     tags=[f'{USERS_PREFIX} Update'],
     responses={
         **AUTHENTICATION_RESPONSES,

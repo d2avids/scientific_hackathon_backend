@@ -79,7 +79,7 @@ async def get_user(
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(require_mentor),
 ):
-    """## Get current user. Any authenticated user is allowed."""
+    """## Get user by id. Only mentors are allowed."""
     return await service.get_by_id(user_id)
 
 

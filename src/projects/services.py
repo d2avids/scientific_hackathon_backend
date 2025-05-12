@@ -65,6 +65,7 @@ class ProjectService:
             order_direction=order_direction,
             offset=offset,
             limit=limit,
+            join_team=True
         )
         total_pages = ceil(total / limit) if total > 0 else 1
 

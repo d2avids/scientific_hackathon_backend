@@ -55,6 +55,7 @@ class ProjectRepo:
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
+            join_team: bool = True,
     ) -> tuple[Sequence[Project], int]:
         base_query = select(Project)
         count_query = select(func.count(Project.id))
@@ -63,6 +64,11 @@ class ProjectRepo:
         if search:
             filters.append(
                 Project.name.ilike(f'%{search}%')
+            )
+
+        if join_team:
+            base_query = base_query.options(
+                joinedload(Project.team)
             )
 
         base_query = base_query.where(*filters)

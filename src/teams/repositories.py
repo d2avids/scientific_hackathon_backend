@@ -286,18 +286,6 @@ class TeamMemberRepo:
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
-    async def get_by_team(
-            self,
-            team_id: int,
-            *,
-            team_join: bool = False,
-            participant_join: bool = False,
-    ) -> Sequence[TeamMember]:
-        base_query = select(TeamMember).where(TeamMember.team_id == team_id)
-        base_query = self._add_team_member_joins(base_query, team_join, participant_join)
-        result = await self._db.execute(base_query)
-        return result.scalars().all()
-
     async def get_by_user(
             self,
             user: User,

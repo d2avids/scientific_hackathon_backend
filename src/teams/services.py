@@ -143,12 +143,6 @@ class TeamMemberService:
             team_id: int,
             members: list[TeamMemberCreateUpdate],
     ) -> list[TeamMemberInDB]:
-        check_team = await self._repo.get_by_team(team_id)
-        if not check_team:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail='Team not found'
-            )
         if len(members) > 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -175,7 +169,10 @@ class TeamMemberService:
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='Integrity error. Check the data for correctness.'
+                detail=(
+                    'Integrity error. Check the data for correctness. '
+                    'Team or participant not found or already in a team.'
+                )
             )
         return [TeamMemberInDB.model_validate(member) for member in member_db]
 

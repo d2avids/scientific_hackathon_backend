@@ -166,11 +166,11 @@ class MentorUpdate(MentorBase):
     ]
 
 
-class ParticipantInDB(CreatedUpdatedAt, ParticipantUpdate):
+class ParticipantInDB(CreatedUpdatedAt, ParticipantUpdate, IDModel):
     """Schema for a participant to be returned."""
 
 
-class MentorInDB(CreatedUpdatedAt, MentorUpdate):
+class MentorInDB(CreatedUpdatedAt, MentorUpdate, IDModel):
     """Schema for a mentor to be returned."""
     is_admin: Annotated[
         bool,

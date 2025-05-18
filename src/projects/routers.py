@@ -116,7 +116,7 @@ async def get_project(
 async def get_project(
         project_id: int,
         service: ProjectService = Depends(get_project_service),
-        # current_user: User = Depends(get_current_user),
+        current_user: User = Depends(get_current_user),
 ):
     """## Get project files by project's id. Authenticated user required"""
     files = await service.get_project_files(project_id)

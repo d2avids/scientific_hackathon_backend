@@ -16,7 +16,7 @@ from projects.openapi import (
     COMMENT_CREATE_RESPONSES,
     MODIFY_STEP_ATTEMPT_RESPONSES
 )
-from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB, StepModify
+from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB, StepModify, FileInDB
 from projects.services import ProjectService, StepService
 from users.models import User
 
@@ -102,6 +102,25 @@ async def get_project(
     """## Get project by id. Authenticated user required"""
     project = await service.get_by_id(project_id)
     return ProjectWithStepsInDB.model_validate(project)
+
+
+@router.get(
+    '/{project_id}/files',
+    tags=[PROJECT_TAG],
+    response_model=list[FileInDB],
+    responses={
+        **NOT_FOUND_RESPONSE,
+        **AUTHENTICATION_RESPONSES,
+    }
+)
+async def get_project(
+        project_id: int,
+        service: ProjectService = Depends(get_project_service),
+        # current_user: User = Depends(get_current_user),
+):
+    """## Get project files by project's id. Authenticated user required"""
+    files = await service.get_project_files(project_id)
+    return [FileInDB.model_validate(file) for file in files]
 
 
 @router.patch(
@@ -255,7 +274,7 @@ async def modify_step_attempt_state(
 async def submit_step_attempt(
         project_id: int,
         step_num: Annotated[int, Path(gt=0, lt=16)],
-        text: Annotated[str, Form(..., max_length=10000)],
+        text: Annotated[Optional[str], Form(max_length=10000)] = None,
         files: Annotated[list[UploadFile], File()] = None,
         service: StepService = Depends(get_step_service),
         user_and_team_ids: [User, int] = Depends(ensure_team_captain),
@@ -373,7 +392,7 @@ async def download_file(
 
 
 @router.get(
-    '/{project_id}/all-files',
+    '/{project_id}/files-zip',
     tags=[PROJECT_TAG],
     responses={
         **AUTHENTICATION_RESPONSES,

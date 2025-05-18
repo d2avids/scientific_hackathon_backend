@@ -91,6 +91,12 @@ class ProjectRepo:
 
         return projects_list, total
 
+    async def get_project_files(self, project_id: int) -> Sequence[StepFile]:
+        subquery = select(Step.id).where(Step.project_id == project_id).subquery()  # type: ignore
+        stmt = select(StepFile).where(StepFile.step_id.in_(subquery))
+        result = await self._db.execute(stmt)
+        return result.scalars().all()
+
     async def create(self, project_create: ProjectCreate, commit: bool = True) -> Project:
         project = Project(**project_create.model_dump())
         self._db.add(project)

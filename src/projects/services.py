@@ -71,6 +71,9 @@ class ProjectService:
 
         return result, total, total_pages
 
+    async def get_project_files(self, project_id: int) -> Sequence[StepFile]:
+        return await self._repo.get_project_files(project_id)
+
     async def create(
             self,
             *,

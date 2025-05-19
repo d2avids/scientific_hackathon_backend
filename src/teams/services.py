@@ -30,7 +30,7 @@ class TeamService:
             )
         except AlreadyExistsError:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
+                status_code=status.HTTP_409_CONFLICT,
                 detail='Team with this name already exists'
             )
 

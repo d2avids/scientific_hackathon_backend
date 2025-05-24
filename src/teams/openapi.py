@@ -6,11 +6,11 @@ ResponseDict = Dict[int | str, Dict[str, Any]]
 
 TEAM_CREATE_RESPONSES: ResponseDict = {
     status.HTTP_409_CONFLICT: {
-        'description': 'Team with this name already exists',
+        'description': 'Team with this name or these team members already exists',
         'content': {
             'application/json': {
                 'example': {
-                    'detail': 'Team with this name already exists'
+                    'detail': 'Integrity error. Check the data for correctness.'
                 }
             }
         }

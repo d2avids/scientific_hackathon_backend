@@ -91,14 +91,6 @@ class TeamRepo:
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
-    async def get_by_name(
-            self,
-            name: str,
-    ) -> Optional[Team]:
-        base_query = select(Team).where(Team.name == name)
-        result = await self._db.execute(base_query)
-        return result.scalars().unique().one_or_none()
-
     async def get_by_project_or_mentor(
             self,
             project_id: Optional[int] = None,
@@ -146,8 +138,6 @@ class TeamRepo:
     ) -> Team:
 
         team = Team(**team_data.model_dump(exclude={'team_members'}))
-        if await self.get_by_name(team.name):
-            raise AlreadyExistsError('Team with this name already exists')
         team.mentor_id = mentor_id
         self._db.add(team)
         await self._db.flush()

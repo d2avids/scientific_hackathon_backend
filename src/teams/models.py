@@ -19,7 +19,11 @@ class Team(CreatedUpdatedAt, Base):
         primary_key=True,
         autoincrement=True
     )
-    name: Mapped[str] = mapped_column(String(250), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(250),
+        nullable=False,
+        unique=True
+    )
 
     mentor_id: Mapped[int] = mapped_column(
         BigInteger,

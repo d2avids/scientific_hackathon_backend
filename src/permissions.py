@@ -2,6 +2,8 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 
 from auth.services import get_current_user
+from projects.dependencies import get_project_repo
+from projects.repositories import ProjectRepo
 from teams.dependencies import get_team_member_repo
 from teams.models import TeamMember
 from teams.repositories import TeamMemberRepo
@@ -90,17 +92,33 @@ async def _verify_team_membership(
     if team_member.team_id != team_id:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail='Not allowed to access this team'
+            detail='You are not allowed to modify or access this resource.'
         )
     return current_user, team_member
 
 
 async def ensure_team_member_or_mentor(
-        team_id: int,
+        team_id: Optional[int] = None,
+        project_id: Optional[int] = None,
         current_user: User = Depends(get_current_user),
-        team_member_repo: TeamMemberRepo = Depends(get_team_member_repo)
+        team_member_repo: TeamMemberRepo = Depends(get_team_member_repo),
+        project_repo: ProjectRepo = Depends(get_project_repo)
 ) -> User:
     """Ensure that the current user is a member of the specified team or is a mentor."""
+
+    if project_id:
+        project = await project_repo.get_by_id(project_id, join_team=True)
+        if not project:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Project not found'
+            )
+        if not project.team:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Project has no team'
+            )
+        team_id = project.team.id
     user, _ = await _verify_team_membership(team_id, current_user, team_member_repo)
     return user
 

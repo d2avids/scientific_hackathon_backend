@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 from auth.services import get_current_user
 from openapi import NOT_FOUND_RESPONSE, AUTHENTICATION_RESPONSES, FILE_UPLOAD_RELATED_RESPONSES
 from pagination import PaginatedResponse, PaginationParams
-from permissions import require_mentor, ensure_team_captain
+from permissions import ensure_team_member_or_mentor, require_mentor, ensure_team_captain
 from projects.dependencies import get_project_service, get_step_service
 from projects.openapi import (
     PROJECT_CREATE_RESPONSES,
@@ -405,9 +405,9 @@ async def download_all_files(
         project_id: int,
         background_tasks: BackgroundTasks,
         service: ProjectService = Depends(get_project_service),
-        current_user: User = Depends(require_mentor)
+        current_user: User = Depends(ensure_team_member_or_mentor)
 ):
-    """## Download all files from a project. Mentor rights required"""
+    """## Download all files from a project. Mentor or team member rights required"""
     return await service.download_all_files(project_id, background_tasks)
 
 

@@ -127,19 +127,16 @@ class Mentor(CreatedUpdatedAt, Base):
     research_topics: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     articles: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
     scientific_interests: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    taught_subjects: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     # relationships
+    user: Mapped['User'] = relationship(back_populates='mentor', single_parent=True)
     teams: Mapped[list['Team']] = relationship(
         'Team',
         back_populates='mentor',
         passive_deletes=True,
         lazy='selectin'
     )
-    taught_subjects: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
-
-    # relationships
-    user: Mapped['User'] = relationship(back_populates='mentor', single_parent=True)
-    teams: Mapped[list['Team']] = relationship('Team', back_populates='mentor', cascade='none')
 
 
 class UserDocument(CreatedUpdatedAt, Base):

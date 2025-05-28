@@ -89,3 +89,11 @@ class TeamMember(CreatedUpdatedAt, Base):
         'Participant',
         back_populates='team_members'
     )
+
+    @property
+    def first_name(self) -> str:
+        return self.participant.user.first_name
+
+    @property
+    def last_name(self) -> str:
+        return self.participant.user.last_name

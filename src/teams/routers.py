@@ -7,7 +7,7 @@ from pagination import PaginatedResponse, PaginationParams
 from permissions import ensure_team_member_or_mentor, require_mentor, ensure_team_captain_or_mentor
 from teams.dependencies import get_team_member_service, get_team_service
 from teams.openapi import TEAM_CREATE_RESPONSES, TEAM_UPDATE_RESPONSES
-from teams.schemas import TeamCreate, TeamInDB, TeamMemberCreateUpdate, TeamMemberInDB, TeamUpdate
+from teams.schemas import TeamCreate, TeamInDBCreateDelete, TeamInDBRead, TeamMemberCreateUpdate, TeamMemberInDBCreate, TeamUpdate
 from teams.services import TeamMemberService, TeamService
 from users.models import User
 
@@ -19,7 +19,7 @@ TEAMS_PREFIX = 'Teams'
 @router.post(
     '/teams',
     tags=[TEAMS_PREFIX],
-    response_model=TeamInDB,
+    response_model=TeamInDBCreateDelete,
     responses=TEAM_CREATE_RESPONSES,
     status_code=status.HTTP_201_CREATED
 )
@@ -95,7 +95,7 @@ async def delete_team(
 @router.get(
     '/teams/{team_id}',
     tags=[TEAMS_PREFIX],
-    response_model=TeamInDB,
+    response_model=TeamInDBRead,
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE
@@ -116,7 +116,7 @@ async def get_team_by_id(
 @router.get(
     '/teams',
     tags=[TEAMS_PREFIX],
-    response_model=PaginatedResponse[TeamInDB],
+    response_model=PaginatedResponse[TeamInDBRead],
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE
@@ -150,7 +150,7 @@ async def get_all_teams(
         limit=pagination_params.per_page,
         mentor_id=mentor_id
     )
-    return PaginatedResponse[TeamInDB](
+    return PaginatedResponse[TeamInDBRead](
         items=[team for team in teams if team is not None],
         total=total,
         page=pagination_params.page,
@@ -162,7 +162,7 @@ async def get_all_teams(
 @router.post(
     '/teams/{team_id}/members',
     tags=[TEAMS_PREFIX],
-    response_model=list[TeamMemberInDB],
+    response_model=list[TeamMemberInDBCreate],
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE
@@ -194,7 +194,7 @@ async def add_team_members(
 @router.patch(
     '/teams/{team_id}/members/{team_member_id}/role-name',
     tags=[TEAMS_PREFIX],
-    response_model=TeamMemberInDB,
+    response_model=TeamMemberInDBCreate,
     responses={
         **AUTHENTICATION_RESPONSES,
         **NOT_FOUND_RESPONSE

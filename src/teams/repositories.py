@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from exceptions import NotFoundError, AlreadyExistsError
 from teams.models import Team, TeamMember
 from teams.schemas import TeamCreate, TeamMemberCreateUpdate
-from users.models import User
+from users.models import User, Participant
 
 
 class TeamRepo:
@@ -27,7 +27,11 @@ class TeamRepo:
         if project_join:
             query = query.options(joinedload(Team.project))
         if team_members_join:
-            query = query.options(joinedload(Team.team_members))
+            query = query.options(
+                joinedload(Team.team_members)
+                .joinedload(TeamMember.participant)
+                .joinedload(Participant.user)
+            )
         return query
 
     async def get_all(

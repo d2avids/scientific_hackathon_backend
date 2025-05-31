@@ -1,11 +1,10 @@
 from datetime import datetime, UTC
 from typing import TYPE_CHECKING, Optional
 
-from sqlalchemy import String, BigInteger, Integer, SmallInteger, Float, ForeignKey, TIMESTAMP, Boolean
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-
 from database import Base, CreatedUpdatedAt
 from projects.constants import ProjectStatus
+from sqlalchemy import String, BigInteger, Integer, SmallInteger, Float, ForeignKey, TIMESTAMP, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from teams.models import Team
@@ -130,8 +129,7 @@ class StepComment(Base):
     text: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         TIMESTAMP(timezone=True),
-        default=datetime.now(UTC),
-        onupdate=datetime.now(UTC)
+        default=lambda: datetime.now(UTC),
     )
 
     # relationships

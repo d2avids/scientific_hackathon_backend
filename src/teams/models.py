@@ -1,15 +1,9 @@
-from typing import TYPE_CHECKING
-
 from sqlalchemy import BigInteger, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from database import Base, CreatedUpdatedAt
 from projects.models import Project
 from users.models import Mentor, Participant
-
-if TYPE_CHECKING:
-    from projects.models import StepAttempt
-
 
 class Team(CreatedUpdatedAt, Base):
     __tablename__ = 'teams'

@@ -17,12 +17,12 @@ class CreatedUpdatedAt(Base):
 
     created_at: Mapped[dt.datetime] = mapped_column(
         TIMESTAMP(timezone=True),
-        default=dt.datetime.now(dt.UTC)
+        default=lambda: dt.datetime.now(dt.UTC)
     )
     updated_at: Mapped[dt.datetime] = mapped_column(
         TIMESTAMP(timezone=True),
-        default=dt.datetime.now(dt.UTC),
-        onupdate=dt.datetime.now(dt.UTC)
+        default=lambda: dt.datetime.now(dt.UTC),
+        onupdate=lambda: dt.datetime.now(dt.UTC)
     )
 
 

@@ -31,10 +31,6 @@ class ProjectBase(ConfiguredModel):
 
 
 class ProjectInDB(ProjectBase, IDModel):
-    team_id: Annotated[
-        Optional[int],
-        Field(title='Team id'),
-    ]
     document_path: Annotated[
         str,
         Field(
@@ -78,6 +74,13 @@ class ProjectInDB(ProjectBase, IDModel):
             return None
         return urljoin(settings.SERVER_URL, document_path)
 
+
+class ProjectRead(ProjectInDB):
+    team_id: Annotated[
+        Optional[int],
+        Field(title='Team id'),
+    ]
+
     @model_validator(mode='before')
     @classmethod
     def inject_team_id(cls, data):
@@ -90,7 +93,7 @@ class ProjectInDB(ProjectBase, IDModel):
         return data
 
 
-class ProjectWithStepsInDB(ProjectInDB):
+class ProjectWithStepsInDB(ProjectRead):
     steps: Annotated[
         list['StepInDB'],
         Field(

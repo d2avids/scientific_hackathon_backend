@@ -16,7 +16,8 @@ from projects.openapi import (
     COMMENT_CREATE_RESPONSES,
     MODIFY_STEP_ATTEMPT_RESPONSES
 )
-from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB, StepModify, FileInDB
+from projects.schemas import ProjectInDB, ProjectWithStepsInDB, StepWithRelations, StepCommentInDB, StepModify, \
+    FileInDB, ProjectRead
 from projects.services import ProjectService, StepService
 from users.models import User
 
@@ -29,7 +30,7 @@ STEPS_TAG = 'Steps'
 @router.get(
     '/',
     tags=[PROJECT_TAG],
-    response_model=PaginatedResponse[ProjectInDB],
+    response_model=PaginatedResponse[ProjectRead],
     responses={
         **AUTHENTICATION_RESPONSES,
     }
@@ -55,7 +56,7 @@ async def get_projects(
         limit=pagination_params.per_page
     )
     return PaginatedResponse(
-        items=[ProjectInDB.model_validate(p) for p in projects],
+        items=[ProjectRead.model_validate(p) for p in projects],
         per_page=pagination_params.per_page,
         page=pagination_params.page,
         total=total,

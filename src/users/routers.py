@@ -117,6 +117,10 @@ async def get_users(
             title='User Type Filter',
             description='True for mentors, false for participants.'
         )] = None,
+        is_team_member: Annotated[Optional[bool], Query(
+            title='Is team member filter',
+            description='True for team members, false for participants without teams.'
+        )] = None,
         ordering: Annotated[Optional[str], Query(
             title='Ordering',
             description='Sort field; prefix with "-" for descending order.'
@@ -127,6 +131,7 @@ async def get_users(
     """## Get all users. Only mentors are allowed."""
     users, total, total_pages = await service.get_all(
         search=search,
+        is_team_member=is_team_member,
         is_mentor=is_mentor,
         ordering=ordering,
         offset=pagination_params.offset,

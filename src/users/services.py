@@ -31,6 +31,7 @@ class UserService:
             self,
             search: Optional[str] = None,
             is_mentor: Optional[bool] = None,
+            is_team_member: Optional[bool] = None,
             ordering: Optional[str] = None,
             offset: int = 0,
             limit: int = 10,
@@ -41,12 +42,14 @@ class UserService:
         entities, total = await self._repo.get_all(
             search=search,
             is_mentor=is_mentor,
+            is_team_member=is_team_member,
             order_column=order_column,
             order_direction=order_direction,
             offset=offset,
             limit=limit,
             mentor_join=True,
-            participant_join=True
+            participant_join=True,
+            team_join=True if is_team_member is not None else False,
         )
 
         users_in_db = [UserInDB.model_validate(u) for u in entities]

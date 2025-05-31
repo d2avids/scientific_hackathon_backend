@@ -1,8 +1,8 @@
 from typing import Literal, Optional, Sequence
 
-from sqlalchemy import asc, delete, desc, func, or_, select
+from sqlalchemy import asc, delete, desc, func, or_, select, join
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from exceptions import NotFoundError
 from teams.models import TeamMember
@@ -19,68 +19,94 @@ class UserRepo:
             *,
             search: Optional[str] = None,
             is_mentor: Optional[bool] = None,
+            is_team_member: Optional[bool] = None,
             order_column: Optional[str] = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
             offset: int = 0,
             limit: int = 10,
-            team_members_join: bool = False,
             participant_join: bool = False,
             mentor_join: bool = False,
             region_join: bool = False,
             team_join: bool = False,
     ) -> tuple[Sequence[User], int]:
         base_query = select(User)
+        count_query = select(func.count(User.id))
+
+        need_team_data = team_join or (is_team_member is not None)
+
+        if need_team_data:
+            base_query = (
+                base_query
+                .outerjoin(User.participant)
+                .outerjoin(Participant.team_members)
+            )
+            count_query = (
+                count_query
+                .outerjoin(User.participant)
+                .outerjoin(Participant.team_members)
+            )
+
+            if team_join:
+                base_query = base_query.outerjoin(TeamMember.team)
+                count_query = count_query.outerjoin(TeamMember.team)
 
         filters = []
+
         if search:
             filters.append(
                 or_(
-                    User.first_name.ilike(f'%{search}%'),
-                    User.last_name.ilike(f'%{search}%'),
-                    User.email.ilike(f'%{search}%')
+                    User.first_name.ilike(f"%{search}%"),
+                    User.last_name.ilike(f"%{search}%"),
+                    User.email.ilike(f"%{search}%"),
                 )
             )
+
         if is_mentor is not None:
             filters.append(User.is_mentor == is_mentor)
 
+        if is_team_member is True:
+            filters.append(TeamMember.team_id.isnot(None))
+        elif is_team_member is False:
+            filters.append(TeamMember.team_id.is_(None))
+
         if filters:
             base_query = base_query.where(*filters)
-
-        count_query = select(func.count(User.id))
-        if filters:
             count_query = count_query.where(*filters)
-
-        count_result = await self._db.execute(count_query)
-        total = count_result.scalar() or 0
 
         column = getattr(User, order_column, None)
         if column is not None:
-            if order_direction == 'ASC':
-                base_query = base_query.order_by(asc(column))
-            else:
-                base_query = base_query.order_by(desc(column))
+            base_query = (
+                base_query.order_by(asc(column))
+                if order_direction == "ASC"
+                else base_query.order_by(desc(column))
+            )
+
         if participant_join:
-            base_query = base_query.options(joinedload(User.participant))
+            base_query = base_query.options(selectinload(User.participant))
+
         if mentor_join:
-            base_query = base_query.options(joinedload(User.mentor))
+            base_query = base_query.options(selectinload(User.mentor))
+
         if region_join:
             base_query = base_query.options(
-                joinedload(User.participant).joinedload(Participant.region)
+                selectinload(User.participant).selectinload(Participant.region)
             )
+
         if team_join:
             base_query = base_query.options(
-                joinedload(
-                    User.participant
-                ).joinedload(
-                    Participant.team_members
-                ).joinedload(
-                    TeamMember.team
-                )
+                selectinload(User.participant)
+                .selectinload(Participant.team_members)
+                .selectinload(TeamMember.team)
             )
-        base_query = base_query.offset(offset).limit(limit)
 
-        result = await self._db.execute(base_query)
-        users_list = result.scalars().all()
+        total_result = await self._db.execute(count_query)
+        total: int = total_result.scalar() or 0
+
+        result = await self._db.execute(
+            base_query.offset(offset).limit(limit)
+        )
+
+        users_list: Sequence[User] = result.scalars().unique().all()
 
         return users_list, total
 

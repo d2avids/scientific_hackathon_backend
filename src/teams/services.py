@@ -6,32 +6,29 @@ from sqlalchemy.exc import IntegrityError
 
 from exceptions import AlreadyExistsError, NotFoundError
 from teams.repositories import TeamMemberRepo, TeamRepo
-from teams.schemas import TeamCreate, TeamInDB, TeamMemberInDB, TeamUpdate, TeamMemberCreateUpdate
+from teams.schemas import (TeamCreate, TeamInDBCreateDelete, TeamInDBRead,
+                           TeamMemberCreateUpdate, TeamMemberInDBCreate,
+                           TeamMemberInDBRead, TeamUpdate)
 from users.models import User
-from utils import create_field_map_for_model, parse_ordering, FileService
+from utils import FileService, create_field_map_for_model, parse_ordering
 
 
 class TeamService:
-    field_map: dict = create_field_map_for_model(TeamInDB)
+    field_map: dict = create_field_map_for_model(TeamInDBCreateDelete)
 
     def __init__(self, repo: TeamRepo):
         self._repo = repo
 
-    async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDB:
+    async def create_team(self, team: TeamCreate, mentor_id: int) -> TeamInDBCreateDelete:
         try:
             team_db = await self._repo.create(team_data=team, mentor_id=mentor_id)
-            team_model = TeamInDB.model_validate(team_db)
-            team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team_db.team_members]
+            team_model = TeamInDBCreateDelete.model_validate(team_db)
+            team_model.team_members = [TeamMemberInDBCreate.model_validate(member) for member in team_db.team_members]
             return team_model
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail='Integrity error. Check the data for correctness.'
-            )
-        except AlreadyExistsError:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail='Team with this name already exists'
             )
 
     async def update_team(
@@ -87,15 +84,15 @@ class TeamService:
         if team.project_id:
             await FileService.delete_all_files_in_directory(['projects', str(team.project_id)])
 
-    async def get_team_by_id(self, team_id: int) -> TeamInDB:
+    async def get_team_by_id(self, team_id: int) -> TeamInDBRead:
         team = await self._repo.get_by_id(team_id)
         if not team:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Team not found'
             )
-        team_model = TeamInDB.model_validate(team)
-        team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
+        team_model = TeamInDBRead.model_validate(team)
+        team_model.team_members = [TeamMemberInDBRead.model_validate(member) for member in team.team_members]
         return team_model
 
     async def get_all_teams(
@@ -106,7 +103,7 @@ class TeamService:
             mentor_id: Optional[int] = None,
             offset: int = 0,
             limit: int = 10,
-    ) -> tuple[list[TeamInDB], int, int]:
+    ) -> tuple[list[TeamInDBRead], int, int]:
         order_column, order_direction = parse_ordering(ordering, field_map=self.field_map)
         if order_column not in self.field_map:
             raise HTTPException(
@@ -121,10 +118,10 @@ class TeamService:
             order_direction=order_direction,
             mentor_id=mentor_id
         )
-        teams_models: list[TeamInDB] = []
+        teams_models: list[TeamInDBCreateDelete] = []
         for team in teams:
-            team_model = TeamInDB.model_validate(team)
-            team_model.team_members = [TeamMemberInDB.model_validate(member) for member in team.team_members]
+            team_model = TeamInDBRead.model_validate(team)
+            team_model.team_members = [TeamMemberInDBRead.model_validate(member) for member in team.team_members]
             teams_models.append(team_model)
         total_pages = ceil(total / limit) if total > 0 else 1
         return teams_models, total, total_pages
@@ -147,7 +144,7 @@ class TeamMemberService:
             self,
             team_id: int,
             members: list[TeamMemberCreateUpdate],
-    ) -> list[TeamMemberInDB]:
+    ) -> list[TeamMemberInDBCreate]:
         if len(members) > 10:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -179,7 +176,7 @@ class TeamMemberService:
                     'Team or participant not found or already in a team.'
                 )
             )
-        return [TeamMemberInDB.model_validate(member) for member in member_db]
+        return [TeamMemberInDBCreate.model_validate(member) for member in member_db]
 
     async def change_team_member_role(
             self,
@@ -187,7 +184,7 @@ class TeamMemberService:
             team_member_id: int,
             role_name: str,
             current_user: User
-    ) -> TeamMemberInDB:
+    ) -> TeamMemberInDBCreate:
         team_member = await self._repo.get_team_member_by_id(team_member_id)
         if not team_member:
             raise HTTPException(
@@ -208,7 +205,7 @@ class TeamMemberService:
                 detail='Only mentors can change the captain role'
             )
         await self._repo.update_team_member(team_id, team_member_id, {'role_name': role_name})
-        return TeamMemberInDB.model_validate(team_member)
+        return TeamMemberInDBCreate.model_validate(team_member)
 
     async def delete_team_member(self, team_id: int, team_member_id: int) -> None:
         team_member = await self._repo.get_team_member_by_id(team_member_id)

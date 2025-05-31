@@ -147,7 +147,7 @@ async def send_password_reset_code(
     token = await reset_code_service.create(user_id=user.id)
 
     reset_link = f'{settings.auth.FRONTEND_RESET_PASSWORD_CALLBACK_URL}?user_id={user.id}&token={token}'
-    print(f'{reset_link=}')
+
     background_tasks.add_task(
         send_mail,
         to_email=user.email,

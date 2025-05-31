@@ -37,8 +37,20 @@ class TeamMemberCreateUpdate(TeamMemberBase):
         return v
 
 
-class TeamMemberInDB(CreatedUpdatedAt, TeamMemberBase, IDModel):
+class TeamMemberInDBCreate(CreatedUpdatedAt, TeamMemberBase, IDModel):
     """Schema for a team member to be returned."""
+
+
+class TeamMemberInDBRead(CreatedUpdatedAt, TeamMemberBase, IDModel):
+    """Schema for a team member with first and last name to be returned."""
+    first_name: Annotated[
+        str,
+        Field(..., title='First Name', description='The first name of the team member.')
+    ]
+    last_name: Annotated[
+        str,
+        Field(..., title='Last Name', description='The last name of the team member.')
+    ]
 
 
 class TeamMentorID(ConfiguredModel):
@@ -114,8 +126,8 @@ class TeamUpdate(TeamBase):
     ]
 
 
-class TeamInDB(TeamMentorID, CreatedUpdatedAt, ConfiguredModel, IDModel):
-    """Schema for a team to be returned."""
+class BaseTeamInDB(TeamMentorID, CreatedUpdatedAt, ConfiguredModel, IDModel):
+    """Base schema for a team."""
     name: Annotated[
         str,
         Field(
@@ -133,7 +145,19 @@ class TeamInDB(TeamMentorID, CreatedUpdatedAt, ConfiguredModel, IDModel):
             description='The ID of the project that the team is associated with.'
         )
     ]
+
+
+class TeamInDBCreateDelete(BaseTeamInDB):
+    """Schema for a team to be returned."""
     team_members: Annotated[
-        List[TeamMemberInDB],
+        List[TeamMemberInDBCreate],
+        Field(..., title='Team Members', description='The members of the team.')
+    ]
+
+
+class TeamInDBRead(BaseTeamInDB):
+    """Schema for a team to be returned."""
+    team_members: Annotated[
+        List[TeamMemberInDBRead],
         Field(..., title='Team Members', description='The members of the team.')
     ]

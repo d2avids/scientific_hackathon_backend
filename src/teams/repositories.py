@@ -8,7 +8,7 @@ from sqlalchemy.orm import joinedload
 from exceptions import NotFoundError, AlreadyExistsError
 from teams.models import Team, TeamMember
 from teams.schemas import TeamCreate, TeamMemberCreateUpdate
-from users.models import User
+from users.models import User, Participant
 
 
 class TeamRepo:
@@ -27,7 +27,11 @@ class TeamRepo:
         if project_join:
             query = query.options(joinedload(Team.project))
         if team_members_join:
-            query = query.options(joinedload(Team.team_members))
+            query = query.options(
+                joinedload(Team.team_members)
+                .joinedload(TeamMember.participant)
+                .joinedload(Participant.user)
+            )
         return query
 
     async def get_all(
@@ -91,14 +95,6 @@ class TeamRepo:
         result = await self._db.execute(base_query)
         return result.scalars().unique().one_or_none()
 
-    async def get_by_name(
-            self,
-            name: str,
-    ) -> Optional[Team]:
-        base_query = select(Team).where(Team.name == name)
-        result = await self._db.execute(base_query)
-        return result.scalars().unique().one_or_none()
-
     async def get_by_project_or_mentor(
             self,
             project_id: Optional[int] = None,
@@ -146,8 +142,6 @@ class TeamRepo:
     ) -> Team:
 
         team = Team(**team_data.model_dump(exclude={'team_members'}))
-        if await self.get_by_name(team.name):
-            raise AlreadyExistsError('Team with this name already exists')
         team.mentor_id = mentor_id
         self._db.add(team)
         await self._db.flush()

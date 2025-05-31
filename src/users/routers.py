@@ -66,6 +66,24 @@ async def get_current_user(
 
 
 @router.get(
+    '/users/info-file',
+    tags=[f'{USERS_PREFIX} Read'],
+    responses={
+        **AUTHENTICATION_RESPONSES,
+        **NOT_FOUND_RESPONSE
+    },
+    response_class=FileResponse,
+    status_code=status.HTTP_200_OK
+)
+async def download_users_info(
+    background_tasks: BackgroundTasks,
+    service: UserService = Depends(get_user_service),
+    current_user: User = Depends(require_mentor),
+):
+    return await service.download_users_info(background_tasks)
+
+
+@router.get(
     '/users/{user_id}',
     tags=[f'{USERS_PREFIX} Read'],
     responses={**AUTHENTICATION_RESPONSES, **NOT_FOUND_RESPONSE},
@@ -267,21 +285,3 @@ async def delete_document(
 ):
     """## Delete document by id. Only admin or document's owner are allowed."""
     await service.delete(document_id, document)
-
-
-@router.get(
-    '/users/info-file',
-    tags=[f'{USERS_PREFIX} Read'],
-    responses={
-        **AUTHENTICATION_RESPONSES,
-        **NOT_FOUND_RESPONSE
-    },
-    response_class=FileResponse,
-    status_code=status.HTTP_200_OK
-)
-async def download_users_info(
-    background_tasks: BackgroundTasks,
-    service: UserService = Depends(get_user_service),
-    current_user: User = Depends(require_mentor),
-):
-    return await service.download_users_info(background_tasks)

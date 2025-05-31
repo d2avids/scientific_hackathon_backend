@@ -19,7 +19,11 @@ class Team(CreatedUpdatedAt, Base):
         primary_key=True,
         autoincrement=True
     )
-    name: Mapped[str] = mapped_column(String(250), nullable=False)
+    name: Mapped[str] = mapped_column(
+        String(250),
+        nullable=False,
+        unique=True
+    )
 
     mentor_id: Mapped[int] = mapped_column(
         BigInteger,
@@ -85,3 +89,11 @@ class TeamMember(CreatedUpdatedAt, Base):
         'Participant',
         back_populates='team_members'
     )
+
+    @property
+    def first_name(self) -> str:
+        return self.participant.user.first_name
+
+    @property
+    def last_name(self) -> str:
+        return self.participant.user.last_name

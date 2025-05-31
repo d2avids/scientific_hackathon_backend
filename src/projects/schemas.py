@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Annotated, Optional
 from urllib.parse import urljoin
 
-from pydantic import Field, field_serializer, model_validator, computed_field
+from pydantic import Field, field_serializer, model_validator
 
 from projects.constants import MODIFY_STEP_ACTIONS
 from projects.models import Project
@@ -159,6 +159,13 @@ class FileInDB(ConfiguredModel):
     name: Annotated[str, Field(title='File name', )]
     size: Annotated[float, Field(title='File size', description='File size represented in bytes', )]
     mimetype: Annotated[str, Field(title='File mimetype', )]
+
+    @field_serializer('file_path')
+    def _file_path_serializer(self, file_path: Optional[str]) -> Optional[str]:
+        """Generates url path to the file."""
+        if file_path is None:
+            return None
+        return urljoin(settings.SERVER_URL, file_path)
 
 
 class StepCommentInDB(ConfiguredModel, IDModel):

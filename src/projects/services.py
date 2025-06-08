@@ -229,7 +229,7 @@ class ProjectService:
         if not folder_path.exists():
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Project with ID {project_id} not found',
+                detail=f'Project folder with ID {project_id} not found',
             )
 
         zip_path = await FileService.create_zip_from_directory(folder_path, project_description)

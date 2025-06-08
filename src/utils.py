@@ -158,7 +158,7 @@ class FileService:
             folder_name = 'projects'
         else:
             folder_name = 'users'
-        safe_file_path = f'media/{folder_name}/{instance_id}/{document_name}'.lstrip('/\\')
+        safe_file_path = f'{settings.MEDIA_DIR}/{folder_name}/{instance_id}/{document_name}'.lstrip('/\\')
         return BASE_DIR / safe_file_path
 
     @staticmethod
@@ -171,11 +171,11 @@ class FileService:
         is_user: bool = False
     ) -> Path:
         if is_project and project_id:
-            folder_path = f'media/projects/{project_id}'
+            folder_path = f'{settings.MEDIA_DIR}/projects/{project_id}'
         elif is_step and step_id and project_id:
-            folder_path = f'media/projects/{project_id}/steps/{step_id}'
+            folder_path = f'{settings.MEDIA_DIR}/projects/{project_id}/steps/{step_id}'
         elif is_user and user_id:
-            folder_path = f'media/users/{user_id}'
+            folder_path = f'{settings.MEDIA_DIR}/users/{user_id}'
         return BASE_DIR / folder_path
 
     @staticmethod

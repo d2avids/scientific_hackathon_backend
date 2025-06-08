@@ -114,7 +114,7 @@ async def get_project(
         **AUTHENTICATION_RESPONSES,
     }
 )
-async def get_project(
+async def get_project_files(
         project_id: int,
         service: ProjectService = Depends(get_project_service),
         current_user: User = Depends(get_current_user),

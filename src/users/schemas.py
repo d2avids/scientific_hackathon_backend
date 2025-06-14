@@ -456,7 +456,7 @@ class UserInDBWithTeamID(UserInDB):
             title='Team ID',
             validation_alias=AliasPath('participant', 'team_members', 'team_id')
         )
-    ]
+    ] = None
 
 
 class UserDocumentBase(ConfiguredModel):

@@ -2,7 +2,7 @@ from datetime import date
 from typing import Optional, Annotated
 from urllib.parse import urljoin
 
-from pydantic import Field, EmailStr, model_validator, field_serializer, field_validator
+from pydantic import Field, EmailStr, model_validator, field_serializer, field_validator, AliasPath
 
 from schemas import ConfiguredModel, CreatedUpdatedAt, IDModel
 from settings import settings
@@ -447,6 +447,16 @@ class UserInDB(UserBase, CreatedUpdatedAt, IDModel):
         if photo_path is None:
             return None
         return urljoin(settings.SERVER_URL, photo_path)
+
+
+class UserInDBWithTeamID(UserInDB):
+    team_id: Annotated[
+        Optional[int],
+        Field(
+            title='Team ID',
+            validation_alias=AliasPath('participant', 'team_members', 'team_id')
+        )
+    ]
 
 
 class UserDocumentBase(ConfiguredModel):

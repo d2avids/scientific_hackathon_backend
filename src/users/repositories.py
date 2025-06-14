@@ -110,11 +110,14 @@ class UserRepo:
 
         return users_list, total
 
-    async def get_by_id(self, user_id: int) -> Optional[User]:
+    async def get_by_id(self, user_id: int, join_team: bool = False) -> Optional[User]:
+        join_participant_or_team = joinedload(User.participant)
+        if join_team:
+            join_participant_or_team = join_participant_or_team.joinedload(Participant.team_members)
         result = await self._db.execute(
             select(User).where(User.id == user_id).options(  # type: ignore
                 joinedload(User.mentor),
-                joinedload(User.participant)
+                join_participant_or_team,
             )
         )
         return result.scalar_one_or_none()
@@ -123,7 +126,7 @@ class UserRepo:
         result = await self._db.execute(
             select(User).where(User.email == email).options(  # type: ignore
                 joinedload(User.mentor),
-                joinedload(User.participant)
+                joinedload(User.participant),
             )
         )
         return result.scalar_one_or_none()

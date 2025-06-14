@@ -16,7 +16,7 @@ from users.openapi import (
     USER_VERIFY_RESPONSES,
 )
 from permissions import require_mentor, ensure_owner_or_admin, ensure_document_ownership, require_admin
-from users.schemas import UserInDB, RegionInDB, UserCreate, UserDocumentInDB
+from users.schemas import UserInDB, RegionInDB, UserCreate, UserDocumentInDB, UserInDBWithTeamID
 from users.services import RegionService, UserService, UserDocumentService
 from utils import FileService
 
@@ -55,14 +55,14 @@ async def get_regions(
     '/users/me',
     tags=[f'{USERS_PREFIX} Read'],
     responses={**AUTHENTICATION_RESPONSES, },
-    response_model=UserInDB
+    response_model=UserInDBWithTeamID
 )
 async def get_current_user(
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(get_current_user),
 ):
     """## Get current user. Any authenticated user is allowed."""
-    return await service.get_by_id(current_user.id)
+    return await service.get_by_id(current_user.id, join_team=True)
 
 
 @router.get(
@@ -87,7 +87,7 @@ async def download_users_info(
     '/users/{user_id}',
     tags=[f'{USERS_PREFIX} Read'],
     responses={**AUTHENTICATION_RESPONSES, **NOT_FOUND_RESPONSE},
-    response_model=UserInDB
+    response_model=UserInDBWithTeamID
 )
 async def get_user(
         user_id: Annotated[int, Path(
@@ -98,7 +98,7 @@ async def get_user(
         current_user: User = Depends(require_mentor),
 ):
     """## Get user by id. Only mentors are allowed."""
-    return await service.get_by_id(user_id)
+    return await service.get_by_id(user_id, join_team=True)
 
 
 @router.get(

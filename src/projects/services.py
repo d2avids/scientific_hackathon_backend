@@ -2,6 +2,7 @@ import datetime
 import json
 import mimetypes
 from math import ceil
+import os
 from typing import Optional, Sequence
 
 from fastapi import BackgroundTasks, HTTPException, UploadFile, status
@@ -683,13 +684,23 @@ class StepService:
         step_num: int,
         background_tasks: BackgroundTasks
     ) -> FileResponse:
+        """
+        Метод для скачивания всех файлов шага проекта в zip-архиве,
+        включая текст шага и комментарии к нему.
+        :param project_id: ID проекта
+        :param step_num: Номер шага
+        :param background_tasks: Фоновые задачи для удаления временных файлов
+        :return: FileResponse с zip-архивом
+
+        Метод собирает текст шага, комментарии к нему и файлы,
+        создает zip-архив и возвращает его в ответе. Если папка с файлами шага не существует,
+        то создается текстовый файл с информацией о шаге и комментариях. Далее путь текстового файла
+        используется для создания zip-архива, который возвращается в ответе.
+        """
+
         step = await self.get_step_or_404(project_id=project_id, step_num=step_num, join_comments=True)
         folder_path = FileService.get_media_folder_path(project_id=project_id, step_id=step_num, is_step=True)
-        if not folder_path.exists():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f'Project with ID {project_id} not found',
-            )
+
         step_data = {
             'Текст шага': step.text,
             'Очки': step.score,
@@ -703,6 +714,14 @@ class StepService:
             } for comment in step.comments]
         }
         file_text = dict_to_text(data=step_data, pretext=f'Шаг {step_num}:\r\n')
+
+        if not folder_path.exists():
+            text_file_path = await FileService.create_response_file(
+                text=file_text,
+                file_name='temp_file.txt'
+            )
+            folder_path = FileService.get_doc_path_from_full_path(text_file_path)
+            background_tasks.add_task(FileService.delete_file_from_fs, text_file_path)
 
         zip_path = await FileService.create_zip_from_directory(
             folder_path=folder_path,

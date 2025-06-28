@@ -162,6 +162,27 @@ class FileService:
         return BASE_DIR / safe_file_path
 
     @staticmethod
+    def get_doc_path_from_full_path(full_path: Path) -> Path:
+        """
+        Get the document path from the full path.
+
+        Args:
+            full_path: Path - Full path to the document
+        Returns:
+            Path: Document path relative to the media directory
+        """
+        if not full_path.is_absolute():
+            raise ValueError('Full path must be absolute')
+        if not full_path.exists():
+            raise FileNotFoundError(f'File not found: {full_path}')
+
+        media_dir = BASE_DIR / settings.MEDIA_DIR
+        if not full_path.is_relative_to(media_dir):
+            raise ValueError(f'File {full_path} is not inside the media directory {media_dir}')
+
+        return full_path.relative_to(media_dir)
+
+    @staticmethod
     def get_media_folder_path(
         project_id: int | None,
         step_id: int | None = None,

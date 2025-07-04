@@ -114,14 +114,14 @@ class ProjectUpdate(ConfiguredModel):
             title='Project name',
             max_length=50,
         )
-    ]
+    ] = None
     description: Annotated[
         Optional[str],
         Field(
             title='Project description',
             max_length=500,
         )
-    ]
+    ] = None
 
     @model_validator(mode='before')
     @classmethod

@@ -52,7 +52,16 @@ class UserService:
             team_join=True if is_team_member is not None else False,
         )
 
-        users_in_db = [UserInDB.model_validate(u) for u in entities]
+        users_in_db = [
+            UserInDB.model_construct(
+                email=user.email,
+                is_mentor=user.is_mentor,
+                participant=user.participant,
+                mentor=user.mentor,
+                verified=user.verified,
+                photo_path=user.photo_path,
+            ) for user in entities
+        ]
 
         total_pages = ceil(total / limit) if total > 0 else 1
 
@@ -65,7 +74,19 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found.'
             )
-        return UserInDBWithTeamID.model_validate(user)
+        team_id = None
+        participant = user.participant
+        if participant:
+            team_id = participant.team_members.team_id
+        return UserInDBWithTeamID.model_construct(
+            email=user.email,
+            is_mentor=user.is_mentor,
+            participant=user.participant,
+            mentor=user.mentor,
+            verified=user.verified,
+            photo_path=user.photo_path,
+            team_id=team_id
+        )
 
     async def get_by_email(self, email: str) -> UserInDB:
         user = await self._repo.get_by_email(email)
@@ -74,7 +95,14 @@ class UserService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='User not found'
             )
-        return UserInDB.model_validate(user)
+        return UserInDB.model_construct(
+            email=user.email,
+            is_mentor=user.is_mentor,
+            participant=user.participant,
+            mentor=user.mentor,
+            verified=user.verified,
+            photo_path=user.photo_path,
+        )
 
     async def create(self, user: UserCreate) -> UserInDB:
         try:
@@ -83,12 +111,43 @@ class UserService:
             user.password = PasswordEncryption.hash_password(user.password)
             if user.is_mentor:
                 user, mentor = await self._repo.create_user_and_mentor(user, mentor_data)
-                user_model = UserInDB.model_validate(user)
-                user_model.mentor = MentorInDB.model_validate(mentor)
+                user_model = UserInDB.model_construct(
+                    email=user.email,
+                    is_mentor=user.is_mentor,
+                    participant=user.participant,
+                    mentor=user.mentor,
+                    verified=user.verified,
+                    photo_path=user.photo_path,
+                )
+                user_model.mentor = MentorInDB.model_construct(
+                    id=mentor.id,
+                    is_admin=mentor.is_admin,
+                    specialization=mentor.specialization,
+                    job_title=mentor.job_title,
+                    research_topics=mentor.research_topics,
+                    articles=mentor.articles,
+                    scientific_interests=mentor.scientific_interests,
+                    taught_subjects=mentor.taught_subjects,
+                )
             else:
                 user, participant = await self._repo.create_user_and_participant(user, participant_data)
-                user_model = UserInDB.model_validate(user)
-                user_model.participant = ParticipantInDB.model_validate(participant)
+                user_model = UserInDB.model_construct(
+                    email=user.email,
+                    is_mentor=user.is_mentor,
+                    participant=user.participant,
+                    mentor=user.mentor,
+                    verified=user.verified,
+                    photo_path=user.photo_path,
+                )
+                user_model.participant = ParticipantInDB.model_construct(
+                    id=participant.id,
+                    region_id=participant.region_id,
+                    school_grade=participant.school_grade,
+                    city=participant.city,
+                    interests=participant.interests,
+                    olympics=participant.olympics,
+                    achievements=participant.achievements,
+                )
             return user_model
         except IntegrityError:
             raise HTTPException(
@@ -195,7 +254,14 @@ class UserService:
                 await FileService.delete_file_from_fs(file_full_path)
             raise e
 
-        return UserInDB.model_validate(current_user)
+        return UserInDB.model_construct(
+            email=current_user.email,
+            is_mentor=current_user.is_mentor,
+            participant=current_user.participant,
+            mentor=current_user.mentor,
+            verified=current_user.verified,
+            photo_path=current_user.photo_path,
+        )
 
     async def verify(self, user_id: int, background_tasks: BackgroundTasks) -> None:
         user = await self._repo.get_by_id(user_id)
@@ -319,11 +385,30 @@ class UserDocumentService:
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail='Document not found'
             )
-        return UserDocumentInDB.model_validate(document)
+        return UserDocumentInDB.model_construct(
+            id=document.id,
+            name=document.name,
+            path=document.path,
+            size=document.size,
+            mimetype=document.mimetype,
+            created_at=document.created_at,
+            updated_at=document.updated_at,
+        )
 
     async def get_user_documents(self, user_id: int) -> list[UserDocumentInDB]:
         documents = await self._repo.get_user_documents(user_id)
-        return [UserDocumentInDB.model_validate(document) for document in documents]
+        return [
+            UserDocumentInDB.model_construct(
+                id=document.id,
+                name=document.name,
+                path=document.path,
+                size=document.size,
+                mimetype=document.mimetype,
+                created_at=document.created_at,
+                updated_at=document.updated_at,
+            )
+            for document in documents
+        ]
 
     async def create(
             self,
@@ -357,7 +442,15 @@ class UserDocumentService:
                 size=result.size_bytes,
                 mimetype=result.mime_type,
             )
-            return UserDocumentInDB.model_validate(document)
+            return UserDocumentInDB.model_construct(
+                id=document.id,
+                name=document.name,
+                path=document.path,
+                size=document.size,
+                mimetype=document.mimetype,
+                created_at=document.created_at,
+                updated_at=document.updated_at,
+            )
         except Exception as e:
             await FileService.delete_file_from_fs(result.full_path)
             raise e
@@ -374,4 +467,11 @@ class RegionService:
 
     async def get_all(self, search: Optional[str], name: Optional[str], code: Optional[int]) -> list[RegionInDB]:
         regions = await self._repo.get_all(search, name, code)
-        return [RegionInDB.model_validate(region) for region in regions]
+        return [
+            RegionInDB.model_construct(
+                id=region.id,
+                name=region.name,
+                code=region.code
+            )
+            for region in regions
+        ]

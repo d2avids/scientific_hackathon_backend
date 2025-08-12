@@ -215,14 +215,14 @@ class UserBase(ConfiguredModel):
         )
     ]
     phone_number: Annotated[
-        str,
+        Optional[str],
         Field(
-            ...,
+            default=None,
             title='Phone Number',
             description='Russian phone number in the format 7XXXXXXXXXX',
             pattern=r'^7\d{10}$'
         )
-    ]
+    ] = None
     edu_organization: Annotated[
         str,
         Field(

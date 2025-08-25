@@ -54,6 +54,7 @@ class UserService:
 
         users_in_db = [
             UserInDB.model_construct(
+                id=user.id,
                 first_name=user.first_name,
                 last_name=user.last_name,
                 email=user.email,
@@ -100,6 +101,7 @@ class UserService:
                 detail='User not found'
             )
         return UserInDB.model_construct(
+            id=user.id,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,
@@ -118,6 +120,7 @@ class UserService:
             if user.is_mentor:
                 user, mentor = await self._repo.create_user_and_mentor(user, mentor_data)
                 user_model = UserInDB.model_construct(
+                    id=user.id,
                     first_name=user.first_name,
                     last_name=user.last_name,
                     email=user.email,
@@ -140,6 +143,7 @@ class UserService:
             else:
                 user, participant = await self._repo.create_user_and_participant(user, participant_data)
                 user_model = UserInDB.model_construct(
+                    id=user.id,
                     first_name=user.first_name,
                     last_name=user.last_name,
                     email=user.email,
@@ -265,6 +269,7 @@ class UserService:
             raise e
 
         return UserInDB.model_construct(
+            id=current_user.id,
             first_name=current_user.first_name,
             last_name=current_user.last_name,
             email=current_user.email,

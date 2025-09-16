@@ -80,7 +80,7 @@ class UserService:
         team_id = None
         participant = user.participant
         if participant:
-            team_id = participant.team_members.team_id
+            team_id = participant.team_members.team_id if participant.team_members else None
         return UserInDBWithTeamID.model_construct(
             first_name=user.first_name,
             last_name=user.last_name,

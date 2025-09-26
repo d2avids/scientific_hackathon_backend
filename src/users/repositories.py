@@ -19,6 +19,7 @@ class UserRepo:
             *,
             search: Optional[str] = None,
             is_mentor: Optional[bool] = None,
+            is_verified: Optional[bool] = None,
             is_team_member: Optional[bool] = None,
             order_column: Optional[str] = 'id',
             order_direction: Literal['ASC', 'DESC'] = 'ASC',
@@ -63,6 +64,9 @@ class UserRepo:
 
         if is_mentor is not None:
             filters.append(User.is_mentor == is_mentor)
+
+        if is_verified is not None:
+            filters.append(User.verified == is_verified)
 
         if is_team_member is True:
             filters.append(TeamMember.team_id.isnot(None))

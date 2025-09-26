@@ -31,6 +31,7 @@ class UserService:
             self,
             search: Optional[str] = None,
             is_mentor: Optional[bool] = None,
+            is_verified: Optional[bool] = None,
             is_team_member: Optional[bool] = None,
             ordering: Optional[str] = None,
             offset: int = 0,
@@ -42,6 +43,7 @@ class UserService:
         entities, total = await self._repo.get_all(
             search=search,
             is_mentor=is_mentor,
+            is_verified=is_verified,
             is_team_member=is_team_member,
             order_column=order_column,
             order_direction=order_direction,

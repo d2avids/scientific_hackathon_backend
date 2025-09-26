@@ -2,7 +2,6 @@ import datetime
 import json
 import mimetypes
 from math import ceil
-import os
 from typing import Optional, Sequence
 
 from fastapi import BackgroundTasks, HTTPException, UploadFile, status

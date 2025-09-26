@@ -117,6 +117,10 @@ async def get_users(
             title='User Type Filter',
             description='True for mentors, false for participants.'
         )] = None,
+        is_verified: Annotated[Optional[bool], Query(
+            title='User Verification Filter',
+            description='True for verified users, false for non-verified.'
+        )] = None,
         is_team_member: Annotated[Optional[bool], Query(
             title='Is team member filter',
             description='True for team members, false for participants without teams.'
@@ -133,6 +137,7 @@ async def get_users(
         search=search,
         is_team_member=is_team_member,
         is_mentor=is_mentor,
+        is_verified=is_verified,
         ordering=ordering,
         offset=pagination_params.offset,
         limit=pagination_params.per_page,

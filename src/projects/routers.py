@@ -276,19 +276,25 @@ async def submit_step_attempt(
         project_id: int,
         step_num: Annotated[int, Path(gt=0, lt=16)],
         text: Annotated[Optional[str], Form(max_length=10000)] = None,
-        files: Annotated[list[UploadFile], File()] = None,
+        add_files: Annotated[Optional[list[UploadFile]], File()] = None,
+        remove_files: Annotated[Optional[list[int]], Form()] = None,
         service: StepService = Depends(get_step_service),
-        user_and_team_ids: [User, int] = Depends(ensure_team_captain),
+        user_and_team_ids: tuple[User, int] = Depends(ensure_team_captain),
 ):
     """## Submit the work on the step. Team captain role required"""
     step = await service.submit_step(
         project_id=project_id,
         step_num=step_num,
         text=text,
-        files=files if files else [],
+        add_files=add_files or [],
+        remove_file_ids=remove_files or [],
         user_team_id=user_and_team_ids[1],
     )
-    return StepWithRelations.model_validate(step)
+    return StepWithRelations.model_construct(
+        attempts=step.attempts,
+        files=step.files,
+        comments=step.comments
+    )
 
 
 @router.get(

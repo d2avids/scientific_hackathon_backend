@@ -282,6 +282,26 @@ class StepRepo:
         if commit:
             await self._db.commit()
 
+    async def delete_step_files_by_ids(
+        self,
+        *,
+        step: Step,
+        file_ids: list[int],
+        commit: bool = True
+    ) -> None:
+        if not file_ids:
+            return
+        await self._db.execute(
+            delete(StepFile).where(
+                StepFile.step_id == step.id,
+                StepFile.id.in_(file_ids)
+            )
+        )
+        await self._db.flush()
+        await self._db.refresh(step, attribute_names=('files',))
+        if commit:
+            await self._db.commit()
+
     async def create_step_files(
             self,
             *,

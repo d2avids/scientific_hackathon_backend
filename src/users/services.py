@@ -69,7 +69,7 @@ class UserService:
 
         return users_in_db, total, total_pages
 
-    async def get_by_id(self, user_id: int, join_team: bool = False) -> UserInDB:
+    async def get_by_id(self, user_id: int, join_team: bool = False) -> UserInDBWithTeamID:
         user = await self._repo.get_by_id(user_id, join_team)
         if not user:
             raise HTTPException(
@@ -81,6 +81,7 @@ class UserService:
         if participant:
             team_id = participant.team_members.team_id
         return UserInDBWithTeamID.model_construct(
+            id=user.id,
             first_name=user.first_name,
             last_name=user.last_name,
             email=user.email,

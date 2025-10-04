@@ -441,7 +441,8 @@ class StepService:
             project_id: int,
             step_num: int,
             text: str,
-            files: list[UploadFile],
+            add_files: list[UploadFile],
+            remove_file_ids: list[int],
             user_team_id: int
     ) -> Step:
         """Submit a step with text and files."""
@@ -466,9 +467,20 @@ class StepService:
                 detail='Cannot submit step. First, start the step'
             )
 
-        await self._remove_step_files_from_fs(step.files)
+        files_to_create = await self._upload_files(add_files, project_id, step_num)
 
-        files_to_create = await self._upload_files(files, project_id, step_num)
+        file_models_to_remove: list[StepFile] = []
+        if remove_file_ids:
+            print(f"{remove_file_ids=}")
+            existing_by_id = {f.id: f for f in step.files}
+            invalid_ids = [fid for fid in remove_file_ids if fid not in existing_by_id]
+            if invalid_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Some files do not belong to this step: {invalid_ids}"
+                )
+            file_models_to_remove = [existing_by_id[fid] for fid in remove_file_ids]
+
         try:
             time_exceeded = self._is_step_time_exceeded(step.attempts[-1])
             new_status = ProjectStatus.TIME_EXCEEDED if time_exceeded else ProjectStatus.SUBMITTED
@@ -479,12 +491,14 @@ class StepService:
                 data={'text': text, 'status': new_status},
                 commit=False
             )
-            await self._repo.clear_step_files(step, commit=False)
-            await self._repo.create_step_files(
-                step=step,
-                files=files_to_create,
-                commit=False
-            )
+
+            if file_models_to_remove:
+                await self._repo.delete_step_files_by_ids(step=step, file_ids=remove_file_ids, commit=False)
+                await self._remove_step_files_from_fs(file_models_to_remove)
+
+            if files_to_create:
+                await self._repo.create_step_files(step=step, files=files_to_create, commit=False)
+
             await self._repo.set_new_submission(
                 step=step,
                 new_submission=True,

@@ -141,7 +141,7 @@ async def send_password_reset_code(
         reset_code_service: ResetCodeService,
 ):
     user = await user_repo.get_by_email(email)
-    if not user or not user.verified:
+    if not user:
         return
 
     token = await reset_code_service.create(user_id=user.id)

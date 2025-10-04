@@ -57,7 +57,7 @@ async def get_regions(
     responses={**AUTHENTICATION_RESPONSES, },
     response_model=UserInDBWithTeamID
 )
-async def get_current_user(
+async def get_user_me(
         service: UserService = Depends(get_user_service),
         current_user: User = Depends(get_current_user),
 ):

@@ -445,6 +445,8 @@ class StepService:
             user_team_id: int
     ) -> Step:
         """Submit a step with text and files."""
+        now = datetime.datetime.now(tz=datetime.timezone.utc)
+
         step = await self.get_step_or_404(
             project_id=project_id,
             step_num=step_num,
@@ -466,11 +468,14 @@ class StepService:
                 detail='Cannot submit step. First, start the step'
             )
 
+        open_attempt = await self._repo.get_open_attempt(step_id=step.id)
+        if not open_attempt:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='No active attempt to submit')
+
         files_to_create = await self._upload_files(add_files, project_id, step_num)
 
         file_models_to_remove: list[StepFile] = []
         if remove_file_ids:
-            print(f"{remove_file_ids=}")
             existing_by_id = {f.id: f for f in step.files}
             invalid_ids = [fid for fid in remove_file_ids if fid not in existing_by_id]
             if invalid_ids:
@@ -481,10 +486,11 @@ class StepService:
             file_models_to_remove = [existing_by_id[fid] for fid in remove_file_ids]
 
         try:
-            time_exceeded = self._is_step_time_exceeded(step.attempts[-1])
+            time_exceeded = self._is_step_time_exceeded(open_attempt)
             new_status = ProjectStatus.TIME_EXCEEDED if time_exceeded else ProjectStatus.SUBMITTED
 
-            step.attempts[-1].submitted_at = datetime.datetime.now(tz=datetime.timezone.utc)
+            open_attempt.submitted_at = now
+
             await self._repo.update_step(
                 step=step,
                 data={'text': text, 'status': new_status},

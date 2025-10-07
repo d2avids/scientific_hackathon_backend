@@ -426,8 +426,12 @@ class StepService:
         )
 
         if step.status == ProjectStatus.IN_PROGRESS:
+            open_attempt = await self._repo.get_open_attempt(step_id=step.id, for_update=True)
+            if not open_attempt:
+                return step
+
             await self._repo.update_step_attempt_end_time_at(
-                step_attempt=step.attempts[-1],
+                step_attempt=open_attempt,
                 new_timer_minutes=timer,
                 commit=True
             )
@@ -472,8 +476,6 @@ class StepService:
         if not open_attempt:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail='No active attempt to submit')
 
-        files_to_create = await self._upload_files(add_files, project_id, step_num)
-
         file_models_to_remove: list[StepFile] = []
         if remove_file_ids:
             existing_by_id = {f.id: f for f in step.files}
@@ -501,6 +503,7 @@ class StepService:
                 await self._repo.delete_step_files_by_ids(step=step, file_ids=remove_file_ids, commit=False)
                 await self._remove_step_files_from_fs(file_models_to_remove)
 
+            files_to_create = await self._upload_files(add_files, project_id, step_num)
             if files_to_create:
                 await self._repo.create_step_files(step=step, files=files_to_create, commit=False)
 
@@ -573,23 +576,25 @@ class StepService:
                 detail='Step has not been submitted'
             )
 
-        # Validation for timer
-        if not timer and step.status == ProjectStatus.TIME_EXCEEDED:
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail='Step\'s time exceeded. New timer value is required'
-            )
-
         if not timer and step.status == ProjectStatus.SUBMITTED:
-            timedelta = step.attempts[-1].end_time_at - step.attempts[-1].submitted_at
-            time_left = round(timedelta.seconds / 60) or 1
-            data = {'timer_minutes': time_left}
+            last_submitted_attempt = await self._repo.get_last_submitted_attempt(
+                step_id=step.id,
+                for_update=False
+            )
+            if not last_submitted_attempt or not last_submitted_attempt.submitted_at:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="No submitted attempt found to infer timer. Provide a new timer value."
+                )
+
+            delta = last_submitted_attempt.end_time_at - last_submitted_attempt.submitted_at
+            minutes_left = max(1, round(delta.total_seconds() / 60.0))
+            data = {'timer_minutes': minutes_left}
         else:
             data = {'timer_minutes': timer}
 
         data['status'] = ProjectStatus.NOT_STARTED
 
-        # Update step data
         await self._repo.update_step(
             step=step,
             data=data,

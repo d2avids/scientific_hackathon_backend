@@ -65,6 +65,7 @@ class UserService:
                 mentor=user.mentor,
                 verified=user.verified,
                 photo_path=user.photo_path,
+                phone_number=user.phone_number
             ) for user in entities
         ]
 
@@ -93,7 +94,8 @@ class UserService:
             mentor=user.mentor,
             verified=user.verified,
             photo_path=user.photo_path,
-            team_id=team_id
+            team_id=team_id,
+            phone_number=user.phone_number
         )
 
     async def get_by_email(self, email: str) -> UserInDB:
@@ -113,6 +115,7 @@ class UserService:
             mentor=user.mentor,
             verified=user.verified,
             photo_path=user.photo_path,
+            phone_number=user.phone_number
         )
 
     async def create(self, user: UserCreate) -> UserInDB:
@@ -132,6 +135,7 @@ class UserService:
                     mentor=user.mentor,
                     verified=user.verified,
                     photo_path=user.photo_path,
+                    phone_number=user.phone_number
                 )
                 user_model.mentor = MentorInDB.model_construct(
                     id=mentor.id,
@@ -155,6 +159,7 @@ class UserService:
                     mentor=user.mentor,
                     verified=user.verified,
                     photo_path=user.photo_path,
+                    phone_number=user.phone_number
                 )
                 user_model.participant = ParticipantInDB.model_construct(
                     id=participant.id,
@@ -281,6 +286,7 @@ class UserService:
             mentor=current_user.mentor,
             verified=current_user.verified,
             photo_path=current_user.photo_path,
+            phone_number=current_user.phone_number
         )
 
     async def verify(self, user_id: int, background_tasks: BackgroundTasks) -> None:
@@ -300,7 +306,7 @@ class UserService:
             send_mail,
             to_email=user.email,
             subject=SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT,
-            message=SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE
+            message=SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE.format(email=user.email)
         )  # type: ignore
 
     async def decline_registration(self, user_id: int, background_tasks: BackgroundTasks) -> None:

@@ -59,15 +59,22 @@ class UserService:
                 id=user.id,
                 first_name=user.first_name,
                 last_name=user.last_name,
+                patronymic=user.patronymic,
+                birth_date=user.birth_date,
+                phone_number=user.phone_number,
+                about=user.about,
+                edu_organization=user.edu_organization,
                 email=user.email,
                 is_mentor=user.is_mentor,
                 participant=user.participant,
                 mentor=user.mentor,
                 verified=user.verified,
                 photo_path=user.photo_path,
-            ) for user in entities
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+            )
+            for user in entities
         ]
-
         total_pages = ceil(total / limit) if total > 0 else 1
 
         return users_in_db, total, total_pages
@@ -84,15 +91,23 @@ class UserService:
         if participant:
             team_id = participant.team_members.team_id if participant.team_members else None
         return UserInDBWithTeamID.model_construct(
+            id=user.id,
             first_name=user.first_name,
             last_name=user.last_name,
+            patronymic=user.patronymic,
+            birth_date=user.birth_date,
+            phone_number=user.phone_number,
+            about=user.about,
+            edu_organization=user.edu_organization,
             email=user.email,
             is_mentor=user.is_mentor,
             participant=user.participant,
             mentor=user.mentor,
             verified=user.verified,
             photo_path=user.photo_path,
-            team_id=team_id
+            created_at=user.created_at,
+            updated_at=user.updated_at,
+            team_id=team_id,
         )
 
     async def get_by_email(self, email: str) -> UserInDB:
@@ -106,56 +121,45 @@ class UserService:
             id=user.id,
             first_name=user.first_name,
             last_name=user.last_name,
+            patronymic=user.patronymic,
+            birth_date=user.birth_date,
+            phone_number=user.phone_number,
+            about=user.about,
+            edu_organization=user.edu_organization,
             email=user.email,
             is_mentor=user.is_mentor,
             participant=user.participant,
             mentor=user.mentor,
             verified=user.verified,
             photo_path=user.photo_path,
+            created_at=user.created_at,
+            updated_at=user.updated_at,
         )
 
     async def create(self, user: UserCreate) -> UserInDB:
         try:
             participant_data, mentor_data = user.participant, user.mentor
-            user = user.model_copy(update={'participant': None, 'mentor': None})
+            user = user.model_copy(update={"participant": None, "mentor": None})
             user.password = PasswordEncryption.hash_password(user.password)
+
             if user.is_mentor:
                 user, mentor = await self._repo.create_user_and_mentor(user, mentor_data)
-                user_model = UserInDB.model_construct(
-                    id=user.id,
-                    first_name=user.first_name,
-                    last_name=user.last_name,
-                    email=user.email,
-                    is_mentor=user.is_mentor,
-                    participant=user.participant,
-                    mentor=user.mentor,
-                    verified=user.verified,
-                    photo_path=user.photo_path,
-                )
-                user_model.mentor = MentorInDB.model_construct(
+                mentor_model = MentorInDB.model_construct(
                     id=mentor.id,
-                    is_admin=mentor.is_admin,
                     specialization=mentor.specialization,
                     job_title=mentor.job_title,
                     research_topics=mentor.research_topics,
                     articles=mentor.articles,
                     scientific_interests=mentor.scientific_interests,
                     taught_subjects=mentor.taught_subjects,
+                    is_admin=mentor.is_admin,
+                    created_at=mentor.created_at,
+                    updated_at=mentor.updated_at,
                 )
+                participant_model = None
             else:
                 user, participant = await self._repo.create_user_and_participant(user, participant_data)
-                user_model = UserInDB.model_construct(
-                    id=user.id,
-                    first_name=user.first_name,
-                    last_name=user.last_name,
-                    email=user.email,
-                    is_mentor=user.is_mentor,
-                    participant=user.participant,
-                    mentor=user.mentor,
-                    verified=user.verified,
-                    photo_path=user.photo_path,
-                )
-                user_model.participant = ParticipantInDB.model_construct(
+                participant_model = ParticipantInDB.model_construct(
                     id=participant.id,
                     region_id=participant.region_id,
                     school_grade=participant.school_grade,
@@ -163,12 +167,34 @@ class UserService:
                     interests=participant.interests,
                     olympics=participant.olympics,
                     achievements=participant.achievements,
+                    created_at=participant.created_at,
+                    updated_at=participant.updated_at,
                 )
-            return user_model
+                mentor_model = None
+
+            return UserInDB.model_construct(
+                id=user.id,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                patronymic=user.patronymic,
+                birth_date=user.birth_date,
+                phone_number=user.phone_number,
+                about=user.about,
+                edu_organization=user.edu_organization,
+                email=user.email,
+                is_mentor=user.is_mentor,
+                participant=participant_model,
+                mentor=mentor_model,
+                verified=user.verified,
+                photo_path=user.photo_path,
+                created_at=user.created_at,
+                updated_at=user.updated_at,
+            )
+
         except IntegrityError:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail='User with this email already exists OR region_id does not exist.'
+                detail="User with this email already exists OR region_id does not exist.",
             )
 
     async def update(
@@ -269,17 +295,23 @@ class UserService:
             if file_full_path:
                 await FileService.delete_file_from_fs(file_full_path)
             raise e
-
         return UserInDB.model_construct(
             id=current_user.id,
             first_name=current_user.first_name,
             last_name=current_user.last_name,
+            patronymic=current_user.patronymic,
+            birth_date=current_user.birth_date,
+            phone_number=current_user.phone_number,
+            about=current_user.about,
+            edu_organization=current_user.edu_organization,
             email=current_user.email,
             is_mentor=current_user.is_mentor,
             participant=current_user.participant,
             mentor=current_user.mentor,
             verified=current_user.verified,
             photo_path=current_user.photo_path,
+            created_at=current_user.created_at,
+            updated_at=current_user.updated_at,
         )
 
     async def verify(self, user_id: int, background_tasks: BackgroundTasks) -> None:

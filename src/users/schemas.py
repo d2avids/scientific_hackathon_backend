@@ -502,8 +502,6 @@ class ShortUserInDB(ConfiguredModel, IDModel):
         Field(
             ...,
             title='First Name',
-            min_length=2,
-            max_length=50
         )
     ]
     last_name: Annotated[
@@ -511,8 +509,6 @@ class ShortUserInDB(ConfiguredModel, IDModel):
         Field(
             ...,
             title='Last Name',
-            min_length=2,
-            max_length=50
         )
     ]
     patronymic: Annotated[
@@ -520,8 +516,7 @@ class ShortUserInDB(ConfiguredModel, IDModel):
         Field(
             default=None,
             title='Patronymic',
-            min_length=2,
-            max_length=50
+
         )
     ]
     is_mentor: Annotated[

@@ -158,6 +158,7 @@ class StepAttemptInDB(ConfiguredModel):
 
 
 class FileInDB(ConfiguredModel):
+    id: Annotated[int, Field(..., title='File id')]
     file_path: Annotated[str, Field(...)]
     name: Annotated[str, Field(title='File name', )]
     size: Annotated[float, Field(title='File size', description='File size represented in bytes', )]

@@ -79,7 +79,7 @@ class UserService:
 
         return users_in_db, total, total_pages
 
-    async def get_by_id(self, user_id: int, join_team: bool = False) -> UserInDB:
+    async def get_by_id(self, user_id: int, join_team: bool = False) -> UserInDBWithTeamID:
         user = await self._repo.get_by_id(user_id, join_team)
         if not user:
             raise HTTPException(
@@ -331,7 +331,7 @@ class UserService:
             send_mail,
             to_email=user.email,
             subject=SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT,
-            message=SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE
+            message=SUCCESSFUL_REGISTRATION_EMAIL_MESSAGE.format(email=user.email)
         )  # type: ignore
 
     async def decline_registration(self, user_id: int, background_tasks: BackgroundTasks) -> None:

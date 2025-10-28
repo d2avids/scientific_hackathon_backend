@@ -72,7 +72,7 @@ async def get_projects(
         limit=pagination_params.per_page,
     )
     return PaginatedResponse.model_construct(
-        items=[ProjectRead.model_construct(**p.__dict__) for p in projects],
+        items=[ProjectRead.model_validate(p) for p in projects],
         per_page=pagination_params.per_page,
         page=pagination_params.page,
         total=total,
@@ -112,7 +112,7 @@ async def get_project(
 ):
     """## Get project by id. Authenticated user required"""
     project = await service.get_by_id(project_id)
-    return ProjectWithStepsInDB.model_construct(**project.__dict__)
+    return ProjectWithStepsInDB.model_validate(project)
 
 
 @router.get(

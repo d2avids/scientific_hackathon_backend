@@ -118,7 +118,7 @@ class UserService:
                 detail='Mentor not found.'
             )
         return MentorInDBSafeInfo.model_construct(
-            id=mentor.id,
+            user_id=mentor.id,
             first_name=mentor.first_name,
             last_name=mentor.last_name,
             patronymic=mentor.patronymic,

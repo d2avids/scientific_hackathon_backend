@@ -183,6 +183,23 @@ class StepRepo:
         result = await self._db.execute(query)
         return result.unique().scalar_one_or_none()
 
+    async def get_open_attempt(self, step_id: int, for_update: bool = True) -> Optional[StepAttempt]:
+        query = (
+            select(StepAttempt)
+            .where(
+                StepAttempt.step_id == step_id,
+                StepAttempt.submitted_at.is_(None),
+            )
+            .order_by(StepAttempt.id.desc())
+            .limit(1)
+        )
+
+        if for_update:
+            query = query.with_for_update()
+        result = await self._db.execute(query)
+
+        return result.scalar_one_or_none()
+
     async def set_step_status(
             self,
             *,
@@ -407,3 +424,21 @@ class StepRepo:
     ) -> None:
         await self._db.execute(delete(StepComment).where(StepComment.id == comment_id))  # type: ignore
         await self._db.commit()
+
+    async def get_last_submitted_attempt(
+        self, *, step_id: int, for_update: bool = False
+    ) -> Optional[StepAttempt]:
+        query = (
+            select(StepAttempt)
+            .where(
+                StepAttempt.step_id == step_id,
+                StepAttempt.submitted_at.is_not(None),
+            )
+            .order_by(StepAttempt.submitted_at.desc(), StepAttempt.id.desc())
+            .limit(1)
+        )
+        if for_update:
+            query = query.with_for_update()
+
+        result = await self._db.execute(query)
+        return result.scalar_one_or_none()

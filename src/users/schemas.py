@@ -178,6 +178,22 @@ class MentorInDB(CreatedUpdatedAt, MentorUpdate, IDModel):
     ]
 
 
+class MentorInDBSafeInfo(IDModel):
+    first_name: Annotated[
+        str,
+        Field(title='First Name', )
+    ]
+    last_name: Annotated[
+        str,
+        Field(title='Last Name', )
+    ]
+    patronymic: Annotated[
+        Optional[str],
+        Field(title='Patronymic', )
+    ]
+    photo_path: Annotated[Optional[str], Field(title='Photo file path', )]
+
+
 class UserBase(ConfiguredModel):
     first_name: Annotated[
         str,

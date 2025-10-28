@@ -74,13 +74,6 @@ class ProjectInDB(ProjectBase, IDModel):
             return None
         return urljoin(settings.SERVER_URL, document_path)
 
-
-class ProjectRead(ProjectInDB):
-    team_id: Annotated[
-        Optional[int],
-        Field(title='Team id'),
-    ]
-
     @model_validator(mode='before')
     @classmethod
     def inject_team_id(cls, data):
@@ -91,6 +84,13 @@ class ProjectRead(ProjectInDB):
                 'team_id': data.team.id if data.team else None,
             }
         return data
+
+
+class ProjectRead(ProjectInDB):
+    team_id: Annotated[
+        Optional[int],
+        Field(title='Team id'),
+    ]
 
 
 class ProjectWithStepsInDB(ProjectRead):

@@ -126,6 +126,14 @@ class UserRepo:
         )
         return result.scalar_one_or_none()
 
+    async def get_mentor_by_id(self, mentor_id: int) -> Optional[User]:
+        result = await self._db.execute(
+            select(User)
+            .join(User.mentor)
+            .where(Mentor.id == mentor_id)
+        )
+        return result.scalar_one_or_none()
+
     async def get_by_email(self, email: str) -> Optional[User]:
         result = await self._db.execute(
             select(User).where(User.email == email).options(  # type: ignore

@@ -504,8 +504,9 @@ class StepService:
                 commit=True
             )
         except Exception as e:
-            for file_result in files_to_create:
-                await FileService.delete_file_from_fs(file_result.full_path)
+            if files_to_create:
+                for file_result in files_to_create:
+                    await FileService.delete_file_from_fs(file_result.full_path)
             raise e
 
         return step

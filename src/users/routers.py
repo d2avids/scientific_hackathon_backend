@@ -16,7 +16,7 @@ from users.openapi import (
     USER_VERIFY_RESPONSES,
 )
 from permissions import require_mentor, ensure_owner_or_admin, ensure_document_ownership, require_admin
-from users.schemas import UserInDB, RegionInDB, UserCreate, UserDocumentInDB, UserInDBWithTeamID
+from users.schemas import MentorInDBSafeInfo, UserInDB, RegionInDB, UserCreate, UserDocumentInDB, UserInDBWithTeamID
 from users.services import RegionService, UserService, UserDocumentService
 from utils import FileService
 
@@ -99,6 +99,23 @@ async def get_user(
 ):
     """## Get user by id. Only mentors are allowed."""
     return await service.get_by_id(user_id, join_team=True)
+
+
+@router.get(
+    '/mentors/{mentor_id}',
+    tags=[f'{USERS_PREFIX} Read'],
+    responses={**AUTHENTICATION_RESPONSES, **NOT_FOUND_RESPONSE},
+    response_model=MentorInDBSafeInfo
+)
+async def get_mentor(
+        mentor_id: Annotated[int, Path(
+            title='Mentor ID',
+            gt=0
+        )],
+        service: UserService = Depends(get_user_service),
+):
+    """## Get mentor by id. No permissions required."""
+    return await service.get_mentor_by_id(mentor_id)
 
 
 @router.get(

@@ -15,7 +15,7 @@ from constants import (REJECTED_REGISTRATION_EMAIL_MESSAGE,
                        SUCCESSFUL_REGISTRATION_EMAIL_SUBJECT)
 from users.models import User, UserDocument
 from users.repositories import RegionRepo, UserDocumentRepo, UserRepo
-from users.schemas import (MentorInDB, ParticipantInDB, RegionInDB, UserCreate,
+from users.schemas import (MentorInDB, MentorInDBSafeInfo, ParticipantInDB, RegionInDB, UserCreate,
                            UserDocumentInDB, UserInDB, UserUpdate, UserInDBWithTeamID)
 from utils import (FileService, clean_errors, create_field_map_for_model,
                    dict_to_text, parse_ordering, send_mail)
@@ -94,6 +94,21 @@ class UserService:
             verified=user.verified,
             photo_path=user.photo_path,
             team_id=team_id
+        )
+
+    async def get_mentor_by_id(self, mentor_id: int) -> MentorInDBSafeInfo:
+        mentor = await self._repo.get_mentor_by_id(mentor_id)
+        if not mentor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail='Mentor not found.'
+            )
+        return MentorInDBSafeInfo.model_construct(
+            id=mentor.id,
+            first_name=mentor.first_name,
+            last_name=mentor.last_name,
+            patronymic=mentor.patronymic,
+            photo_path=mentor.photo_path,
         )
 
     async def get_by_email(self, email: str) -> UserInDB:
